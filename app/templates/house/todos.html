@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}To-Do List – House{% endblock %}
+{% block title %}Honey-Do List – House{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-  <h4 class="mb-0"><i class="bi bi-check2-square"></i> To-Do List</h4>
+  <h4 class="mb-0"><i class="bi bi-check2-square"></i> Honey-Do List</h4>
   <a href="{{ url_for('todos.add_todo') }}" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg"></i> Add To-Do
   </a>
@@ -110,7 +110,6 @@
           </a>
           <form method="post" action="{{ url_for('todos.delete_todo', todo_id=todo.id) }}"
                 onsubmit="return confirm('Remove this to-do?')">
-            {{ csrf_token() | safe if csrf_token is defined else '' }}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
               <i class="bi bi-trash"></i>
