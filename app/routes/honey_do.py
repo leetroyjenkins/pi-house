@@ -5,7 +5,7 @@ from app.models import HouseTodo, HouseProject
 from app.forms import HouseTodoForm
 from datetime import datetime, date
 
-bp = Blueprint('todos', __name__, url_prefix='/house/todos')
+bp = Blueprint('honey_do', __name__, url_prefix='/house/honey-do')
 
 
 @bp.before_request
@@ -57,7 +57,7 @@ def index():
     all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
 
     return render_template(
-        'house/todos.html',
+        'house/honey_do.html',
         todos=todos,
         all_projects=all_projects,
         sort_by=sort_by,
@@ -89,10 +89,10 @@ def add_todo():
         )
         db.session.add(todo)
         db.session.commit()
-        flash(f'"{todo.title}" added to your to-do list.', 'success')
-        return redirect(url_for('todos.index'))
+        flash(f'"{todo.title}" added to your honey-do list.', 'success')
+        return redirect(url_for('honey_do.index'))
 
-    return render_template('house/todo_form.html', form=form, title='Add To-Do')
+    return render_template('house/honey_do_form.html', form=form, title='Add Honey-Do')
 
 
 @bp.route('/<int:todo_id>/edit', methods=['GET', 'POST'])
@@ -110,9 +110,9 @@ def edit_todo(todo_id):
         todo.priority = form.priority.data
         db.session.commit()
         flash(f'"{todo.title}" updated.', 'success')
-        return redirect(url_for('todos.index'))
+        return redirect(url_for('honey_do.index'))
 
-    return render_template('house/todo_form.html', form=form, title='Edit To-Do', todo=todo)
+    return render_template('house/honey_do_form.html', form=form, title='Edit Honey-Do', todo=todo)
 
 
 # ---------------------------------------------------------------------------
@@ -151,4 +151,4 @@ def delete_todo(todo_id):
     todo.is_active = False
     db.session.commit()
     flash(f'"{todo.title}" removed.', 'info')
-    return redirect(url_for('todos.index'))
+    return redirect(url_for('honey_do.index'))
