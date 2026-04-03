@@ -5,8 +5,8 @@
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <h4 class="mb-0"><i class="bi bi-check2-square"></i> Honey-Do List</h4>
-  <a href="{{ url_for('todos.add_todo') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg"></i> Add To-Do
+  <a href="{{ url_for('honey_do.add_todo') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg"></i> Add Item
   </a>
 </div>
 
@@ -104,12 +104,12 @@
 
         {# Actions #}
         <div class="d-flex gap-1 flex-shrink-0">
-          <a href="{{ url_for('todos.edit_todo', todo_id=todo.id) }}"
+          <a href="{{ url_for('honey_do.edit_todo', todo_id=todo.id) }}"
              class="btn btn-sm btn-outline-secondary" title="Edit">
             <i class="bi bi-pencil"></i>
           </a>
-          <form method="post" action="{{ url_for('todos.delete_todo', todo_id=todo.id) }}"
-                onsubmit="return confirm('Remove this to-do?')">
+          <form method="post" action="{{ url_for('honey_do.delete_todo', todo_id=todo.id) }}"
+                onsubmit="return confirm('Remove this item?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
               <i class="bi bi-trash"></i>
@@ -125,9 +125,9 @@
 {% else %}
 <div class="text-center text-muted py-5">
   <i class="bi bi-check2-all" style="font-size:2.5rem;"></i>
-  <p class="mt-2">No to-dos found.
+  <p class="mt-2">No items found.
     {% if show_completed %} Try hiding completed items.
-    {% else %} <a href="{{ url_for('todos.add_todo') }}">Add one!</a>{% endif %}
+    {% else %} <a href="{{ url_for('honey_do.add_todo') }}">Add one!</a>{% endif %}
   </p>
 </div>
 {% endif %}
@@ -149,7 +149,7 @@ if (sortable) {
         id: parseInt(el.dataset.id),
         sort_order: i + 1,
       }));
-      fetch('{{ url_for("todos.reorder_todos") }}', {
+      fetch('{{ url_for("honey_do.reorder_todos") }}', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +165,7 @@ if (sortable) {
 document.querySelectorAll('.complete-btn').forEach(btn => {
   btn.addEventListener('click', function () {
     const id = this.dataset.id;
-    fetch(`/house/todos/${id}/complete`, {
+    fetch(`/house/honey-do/${id}/complete`, {
       method: 'POST',
       headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
     })
