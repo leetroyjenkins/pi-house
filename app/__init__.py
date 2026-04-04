@@ -17,6 +17,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///budget.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = 300  # 5 minutes
 
     # Initialize extensions
     db.init_app(app)

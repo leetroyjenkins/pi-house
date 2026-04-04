@@ -78,6 +78,7 @@
       </a>
     </div>
     {% endif %}
+    {% if current_user.is_authenticated %}
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -115,6 +116,7 @@
         </li>
       </ul>
     </div>
+    {% endif %}
   </div>
 </nav>
 

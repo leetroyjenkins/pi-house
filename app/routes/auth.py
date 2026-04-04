@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
+from datetime import timedelta
 from app import db
 from app.models import User
 from app.forms import LoginForm, ProfileForm
@@ -13,8 +14,9 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data.strip()).first()
         if user and user.check_password(form.password.data):
-            login_user(user, remember=True)
-            return redirect(request.args.get('next') or url_for('house.index'))
+            session.permanent = True
+            login_user(user, remember=False)
+            return redirect(request.args.get('next') or url_for('honey_do.index'))
         flash('Invalid username or password.', 'danger')
     return render_template('auth/login.html', form=form)
 
