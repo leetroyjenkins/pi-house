@@ -87,7 +87,7 @@ jobs:
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
           source: "docker-compose.yml,pi-house.tar"
-          target: "~/apps/budget"
+          target: "~/apps/pi-house"
 
       - name: Start containers on Pi
         uses: appleboy/ssh-action@v0.1.10
@@ -96,7 +96,7 @@ jobs:
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
           script: |
-            cd ~/apps/budget
+            cd ~/apps/pi-house
             docker load < pi-house.tar
             docker tag pi-house:${{ github.sha }} pi-house:latest
             docker compose down
