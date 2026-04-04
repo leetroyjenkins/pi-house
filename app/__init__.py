@@ -69,6 +69,20 @@ def create_app():
         else:
             click.echo('"General House Expenses" project already exists.')
 
+    # CLI command: flask migrate-task-expenses
+    @app.cli.command('migrate-task-expenses')
+    def migrate_task_expenses():
+        """One-time migration: add task_id column to house_expenses."""
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(db.text(
+                    'ALTER TABLE house_expenses ADD COLUMN task_id INTEGER REFERENCES house_todos(id)'
+                ))
+                conn.commit()
+                click.echo('Added task_id column to house_expenses.')
+            except Exception as e:
+                click.echo(f'Migration may already be applied or failed: {e}')
+
     # CLI command: flask create-user
     @app.cli.command('create-user')
     @click.argument('username')

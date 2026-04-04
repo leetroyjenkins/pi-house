@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }} – Honey-Do{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url_for('honey_do.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to List
+  </a>
+</div>
+
+<div class="row g-4">
+
+  {# ── Task details ── #}
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          {% if task.completed %}
+            <span class="text-decoration-line-through text-muted">{{ task.title }}</span>
+          {% else %}
+            {{ task.title }}
+          {% endif %}
+        </h5>
+        <a href="{{ url_for('honey_do.edit_task', task_id=task.id) }}"
+           class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-pencil"></i> Edit
+        </a>
+      </div>
+      <div class="card-body">
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% if task.priority == 'High' %}
+            <span class="badge bg-danger">High Priority</span>
+          {% elif task.priority == 'Medium' %}
+            <span class="badge bg-warning text-dark">Medium Priority</span>
+          {% else %}
+            <span class="badge bg-info text-dark">Low Priority</span>
+          {% endif %}
+
+          {% if task.completed %}
+            <span class="badge bg-success">Completed</span>
+          {% endif %}
+
+          {% if task.project %}
+            <span class="badge bg-secondary">{{ task.project.name }}</span>
+          {% else %}
+            <span class="badge bg-light text-secondary border">General Upkeep</span>
+          {% endif %}
+        </div>
+
+        {% if task.description %}
+        <p class="text-muted mb-3">{{ task.description }}</p>
+        {% endif %}
+
+        <dl class="row mb-0 small">
+          {% if task.start_date %}
+          <dt class="col-5 text-muted fw-normal">Start date</dt>
+          <dd class="col-7">{{ task.start_date.strftime('%b %-d, %Y') }}</dd>
+          {% endif %}
+
+          {% if task.due_date %}
+          <dt class="col-5 text-muted fw-normal">Due date</dt>
+          <dd class="col-7 {{ 'text-danger fw-semibold' if not task.completed and task.due_date < today else '' }}">
+            {{ task.due_date.strftime('%b %-d, %Y') }}
+            {% if not task.completed and task.due_date < today %}
+              <span class="badge bg-danger ms-1">Overdue</span>
+            {% endif %}
+          </dd>
+          {% endif %}
+
+          {% if task.completed and task.completed_at %}
+          <dt class="col-5 text-muted fw-normal">Completed</dt>
+          <dd class="col-7 text-success">{{ task.completed_at.strftime('%b %-d, %Y') }}</dd>
+          {% endif %}
+        </dl>
+
+        <hr class="my-3">
+
+        <form method="post" action="{{ url_for('honey_do.complete_task', task_id=task.id) }}"
+              id="completeForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        <div class="d-flex gap-2">
+          <button form="completeForm" type="submit" class="btn btn-sm {{ 'btn-outline-secondary' if task.completed else 'btn-success' }}">
+            <i class="bi bi-{{ 'arrow-counterclockwise' if task.completed else 'check-lg' }}"></i>
+            {{ 'Mark Incomplete' if task.completed else 'Mark Complete' }}
+          </button>
+          <form method="post" action="{{ url_for('honey_do.delete_task', task_id=task.id) }}"
+                onsubmit="return confirm('Delete this task?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i> Delete
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Expenses ── #}
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> Expenses</h5>
+        <button class="btn btn-sm btn-primary" onclick="openExpenseModal()">
+          <i class="bi bi-plus-lg"></i> Add Expense
+        </button>
+      </div>
+      <div class="card-body p-0">
+        {% if expenses %}
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Date</th>
+              <th>Category</th>
+              <th class="text-end">Price</th>
+              <th class="text-end">Tax</th>
+              <th class="text-end">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody">
+            {% for e in expenses %}
+            <tr data-expense-id="{{ e.id }}">
+              <td>
+                <div class="fw-semibold">{{ e.item }}</div>
+                {% if e.description %}<div class="text-muted small">{{ e.description }}</div>{% endif %}
+              </td>
+              <td class="small text-nowrap">{{ e.expenditure_date.strftime('%b %-d, %Y') }}</td>
+              <td class="small">{{ e.category }}</td>
+              <td class="text-end small">${{ '%.2f' % e.price }}</td>
+              <td class="text-end small text-muted">${{ '%.2f' % e.effective_tax }}</td>
+              <td class="text-end small fw-semibold">${{ '%.2f' % e.total_with_tax }}</td>
+              <td class="text-end text-nowrap">
+                <button class="btn btn-sm btn-outline-secondary p-1"
+                        onclick="openExpenseModal({{ e.id }},
+                          {{ e.item | tojson }},
+                          {{ e.price | string }},
+                          {{ (e.tax | string) if e.tax is not none else 'null' }},
+                          '{{ e.expenditure_date.strftime('%Y-%m-%d') }}',
+                          {{ e.category | tojson }},
+                          {{ (e.description or '') | tojson }})"
+                        title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger p-1"
+                        onclick="deleteExpense({{ e.id }})" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="5" class="text-end fw-semibold">Total</td>
+              <td class="text-end fw-semibold" id="expenseTotal">${{ '%.2f' % total }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4" id="emptyExpenses">
+          <i class="bi bi-receipt" style="font-size:2rem;"></i>
+          <p class="mt-2 mb-0 small">No expenses yet.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+{# ── Add / Edit expense modal ── #}
+<div class="modal fade" id="expenseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expenseModalTitle">Add Expense</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="expenseId">
+        <div class="mb-3">
+          <label class="form-label">Item <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="expenseItem">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">Price ($) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="expensePrice" step="0.01" min="0">
+          </div>
+          <div class="col">
+            <label class="form-label">Tax ($)</label>
+            <input type="number" class="form-control" id="expenseTax" step="0.01" min="0"
+                   placeholder="auto (5.5%)">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date <span class="text-danger">*</span></label>
+          <input type="date" class="form-control" id="expenseDate">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="expenseCategory">
+            {% for cat in expense_categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-1">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="expenseDescription" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveExpenseBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const taskId = {{ task.id }};
+const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+
+function openExpenseModal(id, item, price, tax, date, category, description) {
+  document.getElementById('expenseModalTitle').textContent = id ? 'Edit Expense' : 'Add Expense';
+  document.getElementById('expenseId').value = id || '';
+  document.getElementById('expenseItem').value = item || '';
+  document.getElementById('expensePrice').value = price != null ? parseFloat(price).toFixed(2) : '';
+  document.getElementById('expenseTax').value = tax != null ? parseFloat(tax).toFixed(2) : '';
+  document.getElementById('expenseDate').value = date || new Date().toISOString().slice(0, 10);
+  document.getElementById('expenseCategory').value = category || 'Materials';
+  document.getElementById('expenseDescription').value = description || '';
+  expenseModal.show();
+}
+
+document.getElementById('saveExpenseBtn').addEventListener('click', function () {
+  const item = document.getElementById('expenseItem').value.trim();
+  const price = document.getElementById('expensePrice').value;
+  const taxVal = document.getElementById('expenseTax').value;
+  const expDate = document.getElementById('expenseDate').value;
+
+  if (!item || !price || !expDate) {
+    alert('Item, price, and date are required.');
+    return;
+  }
+
+  const payload = {
+    item,
+    price: parseFloat(price),
+    tax: taxVal ? parseFloat(taxVal) : null,
+    date: expDate,
+    category: document.getElementById('expenseCategory').value,
+    description: document.getElementById('expenseDescription').value.trim(),
+  };
+
+  const expenseId = document.getElementById('expenseId').value;
+  const url = expenseId
+    ? `/house/honey-do/expenses/${expenseId}/edit`
+    : `/house/honey-do/${taskId}/expenses/add`;
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    expenseModal.hide();
+    window.location.reload();
+  });
+});
+
+function deleteExpense(expenseId) {
+  if (!confirm('Remove this expense?')) return;
+  fetch(`/house/honey-do/expenses/${expenseId}/delete`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken },
+  })
+  .then(r => r.json())
+  .then(() => window.location.reload());
+}
+</script>
+{% endblock %}
