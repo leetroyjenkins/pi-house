@@ -32,12 +32,17 @@
               {{ form.priority(class="form-select") }}
             </div>
             <div class="col-12 col-sm-6">
-              {{ form.project_id.label(class="form-label") }}
-              {{ form.project_id(class="form-select") }}
+              {{ form.timeline.label(class="form-label") }}
+              {{ form.timeline(class="form-select") }}
             </div>
           </div>
 
-          <div class="row g-3 mb-4">
+          <div class="mb-3">
+            {{ form.project_id.label(class="form-label") }}
+            {{ form.project_id(class="form-select") }}
+          </div>
+
+          <div class="row g-3 mb-3">
             <div class="col-12 col-sm-6">
               {{ form.start_date.label(class="form-label") }}
               {{ form.start_date(class="form-control") }}
@@ -45,6 +50,13 @@
             <div class="col-12 col-sm-6">
               {{ form.due_date.label(class="form-label") }}
               {{ form.due_date(class="form-control") }}
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6">
+              {{ form.completed_date.label(class="form-label") }}
+              {{ form.completed_date(class="form-control") }}
             </div>
           </div>
 

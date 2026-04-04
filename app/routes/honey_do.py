@@ -52,7 +52,6 @@ def _get_project_id_for_task(task):
 
 @bp.route('/')
 def index():
-    sort_by = request.args.get('sort', 'priority')
     project_id = request.args.get('project_id', type=int)
 
     query = HouseTask.query.filter_by(is_active=True)
@@ -63,25 +62,12 @@ def index():
         else:
             query = query.filter(HouseTask.project_id == project_id)
 
-    # Completed items always sink to the bottom
-    if sort_by == 'due_date':
-        query = query.order_by(
-            HouseTask.completed.asc(),
-            HouseTask.due_date.asc().nulls_last(),
-            HouseTask.sort_order.asc()
-        )
-    elif sort_by == 'start_date':
-        query = query.order_by(
-            HouseTask.completed.asc(),
-            HouseTask.start_date.asc().nulls_last(),
-            HouseTask.sort_order.asc()
-        )
-    else:
-        query = query.order_by(
-            HouseTask.completed.asc(),
-            HouseTask.sort_order.asc(),
-            HouseTask.id.asc()
-        )
+    # Completed items always sink to the bottom; active tasks ordered by drag-drop sort_order
+    query = query.order_by(
+        HouseTask.completed.asc(),
+        HouseTask.sort_order.asc(),
+        HouseTask.id.asc()
+    )
 
     tasks = query.all()
     all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
@@ -90,7 +76,6 @@ def index():
         'house/honey_do.html',
         tasks=tasks,
         all_projects=all_projects,
-        sort_by=sort_by,
         filter_project_id=project_id,
         today=date.today(),
         expense_categories=HOUSE_EXPENSE_CATEGORIES,
@@ -112,9 +97,12 @@ def add_task():
             title=form.title.data.strip(),
             description=form.description.data.strip() if form.description.data else None,
             project_id=form.project_id.data if form.project_id.data else None,
+            create_date=date.today(),
             start_date=form.start_date.data,
             due_date=form.due_date.data,
+            completed_date=form.completed_date.data,
             priority=form.priority.data,
+            timeline=form.timeline.data or None,
             sort_order=max_order + 1,
         )
         db.session.add(task)
@@ -137,12 +125,68 @@ def edit_task(task_id):
         task.project_id = form.project_id.data if form.project_id.data else None
         task.start_date = form.start_date.data
         task.due_date = form.due_date.data
+        task.completed_date = form.completed_date.data
         task.priority = form.priority.data
+        task.timeline = form.timeline.data or None
         db.session.commit()
         flash(f'"{task.title}" updated.', 'success')
         return redirect(url_for('honey_do.index'))
 
     return render_template('house/honey_do_form.html', form=form, title='Edit Task', task=task)
+
+
+# ---------------------------------------------------------------------------
+# Inline AJAX update (from main list page)
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:task_id>/update', methods=['POST'])
+def update_task(task_id):
+    task = HouseTask.query.get_or_404(task_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'no data'}), 400
+
+    task.title = data.get('title', task.title).strip() or task.title
+    task.description = data.get('description', '').strip() or None
+    pid = int(data['project_id']) if data.get('project_id') else 0
+    task.project_id = pid if pid else None
+    task.priority = data.get('priority', task.priority)
+    task.timeline = data.get('timeline') or None
+
+    # Handle completed toggle
+    if 'completed' in data:
+        newly_completed = bool(data['completed'])
+        if newly_completed and not task.completed:
+            task.completed_at = datetime.utcnow()
+            task.finish_date = date.today()
+        elif not newly_completed and task.completed:
+            task.completed_at = None
+            task.finish_date = None
+        task.completed = newly_completed
+
+    for field in ('start_date', 'due_date', 'completed_date'):
+        raw = data.get(field, '')
+        if raw:
+            try:
+                setattr(task, field, datetime.strptime(raw, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        else:
+            setattr(task, field, None)
+
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Expenses for a task (AJAX, used by inline panel)
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:task_id>/expenses', methods=['GET'])
+def task_expenses(task_id):
+    expenses = HouseExpense.query.filter_by(task_id=task_id, is_active=True)\
+        .order_by(HouseExpense.expenditure_date.desc()).all()
+    return jsonify([_expense_json(e) for e in expenses])
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +280,7 @@ def complete_task(task_id):
     task = HouseTask.query.get_or_404(task_id)
     task.completed = not task.completed
     task.completed_at = datetime.utcnow() if task.completed else None
+    task.finish_date = date.today() if task.completed else None
     db.session.commit()
     # AJAX from list page expects JSON; form submit from detail page expects redirect
     if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:

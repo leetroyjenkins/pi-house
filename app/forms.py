@@ -4,7 +4,7 @@ from wtforms import (
     SelectField, URLField, BooleanField, PasswordField
 )
 from wtforms.validators import DataRequired, Optional, Length, NumberRange, URL, ValidationError, Email, EqualTo
-from app.models import HOUSE_EXPENSE_CATEGORIES, TASK_PRIORITIES
+from app.models import HOUSE_EXPENSE_CATEGORIES, TASK_PRIORITIES, TASK_TIMELINES
 
 
 class LoginForm(FlaskForm):
@@ -59,7 +59,9 @@ class HouseTaskForm(FlaskForm):
     project_id = SelectField('Project', coerce=int, validators=[Optional()])
     start_date = DateField('Start Date', validators=[Optional()])
     due_date = DateField('Due Date', validators=[Optional()])
-    priority = SelectField('Priority', choices=[(p, p) for p in TASK_PRIORITIES], default='Medium')
+    completed_date = DateField('Completed Date', validators=[Optional()])
+    priority = SelectField('Priority', choices=[(p, p) for p in TASK_PRIORITIES], default='Low')
+    timeline = SelectField('Timeline', choices=[('', '— None —')] + [(t, t) for t in TASK_TIMELINES], default='When Possible', validators=[Optional()])
 
 
 class HouseExpenseForm(FlaskForm):

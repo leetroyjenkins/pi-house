@@ -16,18 +16,54 @@
     .chart-container { height: 220px; }
     @media (min-width: 576px) { .chart-container { height: 280px; } }
     @media (min-width: 992px) { .chart-container { height: 320px; } }
+    /* Touch-friendly tap targets */
+    .btn { min-height: 44px; }
+    .btn-sm { min-height: 36px; }
+    /* Prevent iOS auto-zoom on inputs (requires font-size >= 16px) */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+    .form-label-sm, .form-select-sm, .form-control-sm {
+      font-size: 15px !important;
+    }
+    /* Muted checkbox for completed tasks */
+    .complete-check:checked {
+      background-color: #adb5bd;
+      border-color: #adb5bd;
+    }
+    /* Floating add button on mobile */
+    .fab {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+      z-index: 1030;
+      min-height: unset;
+    }
+    @media (min-width: 768px) { .fab { display: none !important; } }
+    /* Hide inline Add button on mobile when FAB is shown */
+    @media (max-width: 767px) { .btn-add-inline { display: none !important; } }
     /* Tighter side padding on phones */
     @media (max-width: 575px) {
-      .container-fluid { padding-left: .75rem !important; padding-right: .75rem !important; }
+      .container-fluid { padding-left: .5rem !important; padding-right: .5rem !important; }
       .stat-card .display-6 { font-size: 1.25rem; }
     }
-    /* Touch-friendly minimum tap target */
-    .btn { min-height: 36px; }
+    /* Drag handle bigger tap area on mobile */
+    @media (max-width: 767px) {
+      .drag-handle { padding: 0 6px; font-size: 1.3rem !important; }
+    }
   </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+<nav class="navbar navbar-expand-md navbar-dark bg-dark mb-3">
   <div class="container-fluid">
     <a class="navbar-brand" href="/">Budget App</a>
     {% if current_user.is_authenticated %}
@@ -46,30 +82,36 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle {% if request.blueprint == 'house' %}active{% endif %}"
-             href="#" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-house-door"></i> House
+      <ul class="navbar-nav ms-auto text-end">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.index' %}active{% endif %}"
+             href="{{ url_for('house.index') }}">
+            <i class="bi bi-bar-chart"></i> Tally
           </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ url_for('house.index') }}">
-              <i class="bi bi-bar-chart"></i> Tally
-            </a></li>
-            <li><a class="dropdown-item" href="{{ url_for('house.expenses') }}">
-              <i class="bi bi-receipt"></i> Expenses
-            </a></li>
-            <li><a class="dropdown-item" href="{{ url_for('house.projects') }}">
-              <i class="bi bi-kanban"></i> Projects
-            </a></li>
-            <li><a class="dropdown-item" href="{{ url_for('honey_do.index') }}">
-              <i class="bi bi-check2-square"></i> Honey-Do
-            </a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{{ url_for('house.retailers') }}">
-              <i class="bi bi-shop"></i> Retailers
-            </a></li>
-          </ul>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.expenses' %}active{% endif %}"
+             href="{{ url_for('house.expenses') }}">
+            <i class="bi bi-receipt"></i> Expenses
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.projects' %}active{% endif %}"
+             href="{{ url_for('house.projects') }}">
+            <i class="bi bi-kanban"></i> Projects
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.blueprint == 'honey_do' %}active{% endif %}"
+             href="{{ url_for('honey_do.index') }}">
+            <i class="bi bi-check2-square"></i> Honey-Do
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.retailers' %}active{% endif %}"
+             href="{{ url_for('house.retailers') }}">
+            <i class="bi bi-shop"></i> Retailers
+          </a>
         </li>
       </ul>
     </div>
@@ -91,6 +133,17 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+  // Auto-close hamburger menu when a nav link is tapped
+  document.querySelectorAll('#navMain .nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const nav = document.getElementById('navMain');
+      if (nav.classList.contains('show')) {
+        bootstrap.Collapse.getInstance(nav)?.hide();
+      }
+    });
+  });
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

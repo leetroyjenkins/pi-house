@@ -42,6 +42,20 @@
             <span class="badge bg-success">Completed</span>
           {% endif %}
 
+          {% if task.timeline %}
+            {% if task.timeline == 'Immediate' %}
+              <span class="badge bg-danger">Immediate</span>
+            {% elif task.timeline == 'Urgent' %}
+              <span class="badge bg-warning text-dark">Urgent</span>
+            {% elif task.timeline == 'Soonish' %}
+              <span class="badge bg-primary">Soonish</span>
+            {% elif task.timeline == 'When Possible' %}
+              <span class="badge bg-info text-dark">When Possible</span>
+            {% else %}
+              <span class="badge bg-secondary">Eventually</span>
+            {% endif %}
+          {% endif %}
+
           {% if task.project %}
             <span class="badge bg-secondary">{{ task.project.name }}</span>
           {% else %}
@@ -54,6 +68,28 @@
         {% endif %}
 
         <dl class="row mb-0 small">
+          {% if task.timeline %}
+          <dt class="col-5 text-muted fw-normal">Timeline</dt>
+          <dd class="col-7">
+            {% if task.timeline == 'Immediate' %}
+              <span class="badge bg-danger">Immediate</span>
+            {% elif task.timeline == 'Urgent' %}
+              <span class="badge bg-warning text-dark">Urgent</span>
+            {% elif task.timeline == 'Soonish' %}
+              <span class="badge bg-primary">Soonish</span>
+            {% elif task.timeline == 'When Possible' %}
+              <span class="badge bg-info text-dark">When Possible</span>
+            {% else %}
+              <span class="badge bg-secondary">Eventually</span>
+            {% endif %}
+          </dd>
+          {% endif %}
+
+          {% if task.create_date %}
+          <dt class="col-5 text-muted fw-normal">Created</dt>
+          <dd class="col-7">{{ task.create_date.strftime('%b %-d, %Y') }}</dd>
+          {% endif %}
+
           {% if task.start_date %}
           <dt class="col-5 text-muted fw-normal">Start date</dt>
           <dd class="col-7">{{ task.start_date.strftime('%b %-d, %Y') }}</dd>
@@ -69,9 +105,17 @@
           </dd>
           {% endif %}
 
-          {% if task.completed and task.completed_at %}
-          <dt class="col-5 text-muted fw-normal">Completed</dt>
+          {% if task.finish_date %}
+          <dt class="col-5 text-muted fw-normal">Finished</dt>
+          <dd class="col-7 text-success">{{ task.finish_date.strftime('%b %-d, %Y') }}</dd>
+          {% elif task.completed and task.completed_at %}
+          <dt class="col-5 text-muted fw-normal">Finished</dt>
           <dd class="col-7 text-success">{{ task.completed_at.strftime('%b %-d, %Y') }}</dd>
+          {% endif %}
+
+          {% if total > 0 %}
+          <dt class="col-5 text-muted fw-normal">Total spent</dt>
+          <dd class="col-7 fw-semibold">${{ '%.2f' | format(total) }}</dd>
           {% endif %}
         </dl>
 
