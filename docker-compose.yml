@@ -1,42 +1,42 @@
 services:
   db:
     image: postgres:16
-    container_name: budget_db
+    container_name: pi_house_db
     environment:
-      POSTGRES_DB: budget_db
-      POSTGRES_USER: budget_user
+      POSTGRES_DB: pi_house_db
+      POSTGRES_USER: pi_house_user
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
     networks:
-      - budget_network
+      - pi_house_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U budget_user -d budget_db"]
+      test: ["CMD-SHELL", "pg_isready -U pi_house_user -d pi_house_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   app:
-    image: budget-app:latest
+    image: pi-house:latest
     build: .
-    container_name: budget_app
+    container_name: pi_house_app
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://budget_user:${DB_PASSWORD}@db:5432/budget_db
+      DATABASE_URL: postgresql+psycopg2://pi_house_user:${DB_PASSWORD}@db:5432/pi_house_db
       SECRET_KEY: ${SECRET_KEY}
       FLASK_ENV: production
     networks:
-      - budget_network
+      - pi_house_network
     restart: unless-stopped
     ports:
       - "5000:5000"
 
 networks:
-  budget_network:
+  pi_house_network:
     driver: bridge
 
 volumes:
