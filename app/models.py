@@ -74,10 +74,10 @@ class HouseProject(db.Model):
         return f'<HouseProject {self.name}>'
 
 
-TODO_PRIORITIES = ['High', 'Medium', 'Low']
+TASK_PRIORITIES = ['High', 'Medium', 'Low']
 
 
-class HouseTodo(db.Model):
+class HouseTask(db.Model):
     __tablename__ = 'house_todos'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -94,10 +94,10 @@ class HouseTodo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    project = db.relationship('HouseProject', backref='todos')
+    project = db.relationship('HouseProject', backref='tasks')
 
     def __repr__(self):
-        return f'<HouseTodo {self.title}>'
+        return f'<HouseTask {self.title}>'
 
 
 HOUSE_EXPENSE_CATEGORIES = [
@@ -127,6 +127,7 @@ class HouseExpense(db.Model):
     category = db.Column(db.String(50), nullable=False, default='Materials')
     retailer_id = db.Column(db.Integer, db.ForeignKey('retailers.id'), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('house_projects.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('house_todos.id'), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
