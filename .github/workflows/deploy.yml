@@ -43,14 +43,14 @@ jobs:
 
       - name: Build Docker image for ARM64
         run: |
-          docker buildx build --platform linux/arm64 -t budget-app:${{ github.sha }} --load .
-          docker save budget-app:${{ github.sha }} > budget-app.tar
+          docker buildx build --platform linux/arm64 -t pi-house:${{ github.sha }} --load .
+          docker save pi-house:${{ github.sha }} > pi-house.tar
 
       - name: Upload Docker image
         uses: actions/upload-artifact@v7.0.0
         with:
           name: docker-image
-          path: budget-app.tar
+          path: pi-house.tar
 
       - name: Upload docker-compose.yml
         uses: actions/upload-artifact@v7.0.0
@@ -86,7 +86,7 @@ jobs:
           host: ${{ secrets.PI_HOST }}
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
-          source: "docker-compose.yml,budget-app.tar"
+          source: "docker-compose.yml,pi-house.tar"
           target: "~/apps/budget"
 
       - name: Start containers on Pi
@@ -97,10 +97,10 @@ jobs:
           key: ${{ secrets.PI_SSH_KEY }}
           script: |
             cd ~/apps/budget
-            docker load < budget-app.tar
-            docker tag budget-app:${{ github.sha }} budget-app:latest
+            docker load < pi-house.tar
+            docker tag pi-house:${{ github.sha }} pi-house:latest
             docker compose down
             docker compose up -d --no-build
-            rm budget-app.tar
+            rm pi-house.tar
             docker compose ps
             echo "Deployment complete!"
