@@ -16,7 +16,14 @@ def login():
         if user and user.check_password(form.password.data):
             session.permanent = True
             login_user(user, remember=False)
-            return redirect(request.args.get('next') or url_for('honey_do.index'))
+            next_url = request.args.get('next') or url_for('honey_do.index')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from flask import jsonify
+                return jsonify({'ok': True, 'redirect': next_url})
+            return redirect(next_url)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from flask import jsonify
+            return jsonify({'ok': False, 'error': 'Invalid username or password.'}), 401
         flash('Invalid username or password.', 'danger')
     return render_template('auth/login.html', form=form)
 
