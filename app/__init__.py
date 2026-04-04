@@ -83,6 +83,52 @@ def create_app():
             except Exception as e:
                 click.echo(f'Migration may already be applied or failed: {e}')
 
+    # CLI command: flask migrate-task-dates
+    @app.cli.command('migrate-task-dates')
+    def migrate_task_dates():
+        """Add create_date and finish_date columns to house_todos."""
+        with db.engine.connect() as conn:
+            for col_sql in [
+                'ALTER TABLE house_todos ADD COLUMN create_date DATE',
+                'ALTER TABLE house_todos ADD COLUMN finish_date DATE',
+            ]:
+                try:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+                    click.echo(f'Applied: {col_sql}')
+                except Exception as e:
+                    click.echo(f'Skipped (may already exist): {e}')
+
+    # CLI command: flask migrate-timeline-values
+    @app.cli.command('migrate-timeline-values')
+    def migrate_timeline_values():
+        """Rename old timeline values to new ones."""
+        mapping = {'Soon': 'Soonish', 'Someday': 'Eventually'}
+        with db.engine.connect() as conn:
+            for old, new in mapping.items():
+                result = conn.execute(
+                    db.text("UPDATE house_todos SET timeline = :new WHERE timeline = :old"),
+                    {'new': new, 'old': old}
+                )
+                conn.commit()
+                click.echo(f'Updated {result.rowcount} tasks: {old} → {new}')
+
+    # CLI command: flask migrate-task-fields
+    @app.cli.command('migrate-task-fields')
+    def migrate_task_fields():
+        """Add completed_date and timeline columns to house_todos."""
+        with db.engine.connect() as conn:
+            for col_sql in [
+                'ALTER TABLE house_todos ADD COLUMN completed_date DATE',
+                'ALTER TABLE house_todos ADD COLUMN timeline VARCHAR(20)',
+            ]:
+                try:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+                    click.echo(f'Applied: {col_sql}')
+                except Exception as e:
+                    click.echo(f'Skipped (may already exist): {e}')
+
     # CLI command: flask create-user
     @app.cli.command('create-user')
     @click.argument('username')

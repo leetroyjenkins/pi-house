@@ -75,6 +75,7 @@ class HouseProject(db.Model):
 
 
 TASK_PRIORITIES = ['High', 'Medium', 'Low']
+TASK_TIMELINES = ['Immediate', 'Urgent', 'Soonish', 'When Possible', 'Eventually']
 
 
 class HouseTask(db.Model):
@@ -84,8 +85,12 @@ class HouseTask(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('house_projects.id'), nullable=True)
+    create_date = db.Column(db.Date, nullable=True, default=date.today)
     start_date = db.Column(db.Date, nullable=True)
     due_date = db.Column(db.Date, nullable=True)
+    finish_date = db.Column(db.Date, nullable=True)
+    completed_date = db.Column(db.Date, nullable=True)
+    timeline = db.Column(db.String(20), nullable=True)
     priority = db.Column(db.String(10), nullable=False, default='Medium')
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     completed = db.Column(db.Boolean, nullable=False, default=False)
@@ -95,6 +100,11 @@ class HouseTask(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     project = db.relationship('HouseProject', backref='tasks')
+    task_expenses = db.relationship('HouseExpense', foreign_keys='[HouseExpense.task_id]', lazy=True)
+
+    @property
+    def expense_total(self):
+        return sum((e.total_with_tax for e in self.task_expenses if e.is_active), Decimal('0'))
 
     def __repr__(self):
         return f'<HouseTask {self.title}>'

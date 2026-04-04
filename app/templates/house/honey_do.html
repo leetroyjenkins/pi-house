@@ -5,22 +5,14 @@
 {% block content %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <h4 class="mb-0"><i class="bi bi-check2-square"></i> Honey-Do List</h4>
-  <a href="{{ url_for('honey_do.add_task') }}" class="btn btn-primary btn-sm">
+  <a href="{{ url_for('honey_do.add_task') }}" class="btn btn-primary btn-sm btn-add-inline">
     <i class="bi bi-plus-lg"></i> Add Item
   </a>
 </div>
 
-{# Filter bar #}
+{# Filter bar – project only; order is always drag-drop sort_order #}
 <form method="get" class="card card-body mb-3 p-2">
   <div class="row g-2 align-items-end">
-    <div class="col-6 col-md-auto">
-      <label class="form-label form-label-sm mb-1">Sort by</label>
-      <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority Order</option>
-        <option value="due_date" {% if sort_by == 'due_date' %}selected{% endif %}>Due Date</option>
-        <option value="start_date" {% if sort_by == 'start_date' %}selected{% endif %}>Start Date</option>
-      </select>
-    </div>
     <div class="col-6 col-md-auto">
       <label class="form-label form-label-sm mb-1">Project</label>
       <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -37,84 +29,211 @@
 {% set incomplete = tasks | rejectattr('completed') | list %}
 {% set completed_list = tasks | selectattr('completed') | list %}
 
-{% macro task_row(task, draggable) %}
-<li class="list-group-item py-2 {% if task.completed %}opacity-50{% endif %}" data-id="{{ task.id }}">
-  <div class="d-flex gap-3 align-items-center">
+{# ── Task card macro ── #}
+{% macro task_card(task) %}
+<li class="list-group-item p-0 task-item" data-id="{{ task.id }}">
 
-    {# Drag handle #}
-    {% if draggable and sort_by == 'priority' %}
-    <span class="drag-handle text-secondary" style="cursor:grab; font-size:1.1rem; flex-shrink:0;">
-      <i class="bi bi-grip-vertical"></i>
-    </span>
-    {% endif %}
+  {# ── VIEW MODE ── #}
+  <div class="task-view px-2 py-2" id="view-{{ task.id }}" style="cursor:pointer;">
+    <div class="d-flex gap-2 align-items-start">
 
-    {# Big checkbox #}
-    <input class="form-check-input complete-check flex-shrink-0" type="checkbox"
-           id="check-{{ task.id }}" data-id="{{ task.id }}"
-           {% if task.completed %}checked{% endif %}
-           style="width:1.5rem; height:1.5rem; cursor:pointer; margin-top:0;">
+      {# Drag handle (left, only for incomplete) #}
+      {% if not task.completed %}
+      <span class="drag-handle text-secondary" style="cursor:grab; font-size:1.1rem; flex-shrink:0; padding-top:2px;">
+        <i class="bi bi-grip-vertical"></i>
+      </span>
+      {% else %}
+      <span style="width:1.1rem; flex-shrink:0;"></span>
+      {% endif %}
 
-    {# Clickable content area #}
-    <a href="{{ url_for('honey_do.detail', task_id=task.id) }}"
-       class="flex-grow-1 min-w-0 text-decoration-none text-reset">
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold {% if task.completed %}text-decoration-line-through{% endif %}">
-          {{ task.title }}
-        </span>
-        {% if task.priority == 'High' %}
-          <span class="badge bg-danger">High</span>
-        {% elif task.priority == 'Medium' %}
-          <span class="badge bg-warning text-dark">Medium</span>
-        {% else %}
-          <span class="badge bg-info text-dark">Low</span>
-        {% endif %}
-        {% if task.project %}
-          <span class="badge bg-secondary">{{ task.project.name }}</span>
-        {% else %}
-          <span class="badge bg-light text-secondary border">General Upkeep</span>
-        {% endif %}
-      </div>
-      <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
-        {% if task.start_date %}
-          <span><i class="bi bi-calendar-event"></i> Start {{ task.start_date.strftime('%b %-d, %Y') }}</span>
-        {% endif %}
-        {% if task.due_date %}
-          <span class="{{ 'text-danger fw-semibold' if not task.completed and task.due_date < today else '' }}">
-            <i class="bi bi-calendar-check"></i> Due {{ task.due_date.strftime('%b %-d, %Y') }}
+      {# Clickable content #}
+      <div class="flex-grow-1 task-clickable {% if task.completed %}opacity-50{% endif %}"
+           data-id="{{ task.id }}" style="min-width:0;">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-semibold {% if task.completed %}text-decoration-line-through{% endif %}">
+            {{ task.title }}
           </span>
-        {% endif %}
-        {% if task.completed and task.completed_at %}
-          <span class="text-success"><i class="bi bi-check-lg"></i> Done {{ task.completed_at.strftime('%b %-d') }}</span>
-        {% endif %}
+          {% if task.priority == 'High' %}
+            <span class="badge bg-danger">High</span>
+          {% elif task.priority == 'Medium' %}
+            <span class="badge bg-warning text-dark">Medium</span>
+          {% else %}
+            <span class="badge bg-info text-dark">Low</span>
+          {% endif %}
+          {% if task.timeline %}
+            {% if task.timeline == 'Immediate' %}
+              <span class="badge bg-danger">Immediate</span>
+            {% elif task.timeline == 'Urgent' %}
+              <span class="badge bg-warning text-dark">Urgent</span>
+            {% elif task.timeline == 'Soonish' %}
+              <span class="badge bg-primary">Soonish</span>
+            {% elif task.timeline == 'When Possible' %}
+              <span class="badge bg-info text-dark">When Possible</span>
+            {% else %}
+              <span class="badge bg-secondary">Eventually</span>
+            {% endif %}
+          {% endif %}
+          {% if task.project %}
+            <span class="badge bg-secondary">{{ task.project.name }}</span>
+          {% else %}
+            <span class="badge bg-light text-secondary border">General Upkeep</span>
+          {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
+          {% if task.completed %}
+            {% if task.finish_date %}
+              <span class="text-success"><i class="bi bi-check-lg"></i> Done {{ task.finish_date.strftime('%b %-d, %Y') }}</span>
+            {% elif task.completed_at %}
+              <span class="text-success"><i class="bi bi-check-lg"></i> Done {{ task.completed_at.strftime('%b %-d, %Y') }}</span>
+            {% endif %}
+          {% else %}
+            {% if task.start_date %}
+              <span><i class="bi bi-calendar-event"></i> Start {{ task.start_date.strftime('%b %-d, %Y') }}</span>
+            {% endif %}
+            {% if task.due_date %}
+              <span class="{{ 'text-danger fw-semibold' if task.due_date < today else '' }}">
+                <i class="bi bi-calendar-check"></i> Due {{ task.due_date.strftime('%b %-d, %Y') }}
+              </span>
+            {% endif %}
+          {% endif %}
+          {% if task.expense_total > 0 %}
+            <span><i class="bi bi-receipt"></i> ${{ '%.2f' | format(task.expense_total) }}</span>
+          {% endif %}
+        </div>
       </div>
-    </a>
 
-    {# Actions #}
-    <div class="d-flex gap-1 flex-shrink-0">
-      <a href="{{ url_for('honey_do.edit_task', task_id=task.id) }}"
-         class="btn btn-sm btn-outline-secondary" title="Edit">
-        <i class="bi bi-pencil"></i>
-      </a>
-      <form method="post" action="{{ url_for('honey_do.delete_task', task_id=task.id) }}"
-            onsubmit="return confirm('Remove this item?')">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-          <i class="bi bi-trash"></i>
-        </button>
-      </form>
+      {# Checkbox (right) #}
+      <div class="form-check flex-shrink-0 mb-0" style="padding-left:0;">
+        <input class="form-check-input complete-check" type="checkbox"
+               id="check-{{ task.id }}" data-id="{{ task.id }}"
+               {% if task.completed %}checked{% endif %}
+               style="width:1.75rem; height:1.75rem; cursor:pointer; margin-top:0; float:none;">
+      </div>
+    </div>
+  </div>
+
+  {# ── EDIT MODE (hidden until card clicked) ── #}
+  <div class="task-edit d-none px-3 pt-2 pb-3" id="edit-{{ task.id }}">
+    <div class="mb-1">
+      <button type="button" class="btn btn-sm btn-link p-0 text-secondary cancel-edit-btn"
+              data-id="{{ task.id }}">
+        <i class="bi bi-arrow-left"></i> Back
+      </button>
+    </div>
+    <div class="mb-2">
+      <label class="form-label form-label-sm mb-1">Title</label>
+      <input type="text" class="form-control form-control-sm" name="title"
+             value="{{ task.title }}">
+    </div>
+    <div class="mb-2">
+      <label class="form-label form-label-sm mb-1">Description</label>
+      <textarea class="form-control form-control-sm" name="description" rows="2">{{ task.description or '' }}</textarea>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col-6 col-sm-4">
+        <label class="form-label form-label-sm mb-1">Priority</label>
+        <select class="form-select form-select-sm" name="priority">
+          <option value="High" {% if task.priority == 'High' %}selected{% endif %}>High</option>
+          <option value="Medium" {% if task.priority == 'Medium' %}selected{% endif %}>Medium</option>
+          <option value="Low" {% if task.priority == 'Low' %}selected{% endif %}>Low</option>
+        </select>
+      </div>
+      <div class="col-6 col-sm-4">
+        <label class="form-label form-label-sm mb-1">Timeline</label>
+        <select class="form-select form-select-sm" name="timeline">
+          <option value="">— None —</option>
+          <option value="Immediate" {% if task.timeline == 'Immediate' %}selected{% endif %}>Immediate</option>
+          <option value="Urgent" {% if task.timeline == 'Urgent' %}selected{% endif %}>Urgent</option>
+          <option value="Soonish" {% if task.timeline == 'Soonish' %}selected{% endif %}>Soonish</option>
+          <option value="When Possible" {% if task.timeline == 'When Possible' %}selected{% endif %}>When Possible</option>
+          <option value="Eventually" {% if task.timeline == 'Eventually' %}selected{% endif %}>Eventually</option>
+        </select>
+      </div>
+      <div class="col-12 col-sm-4">
+        <label class="form-label form-label-sm mb-1">Project</label>
+        <select class="form-select form-select-sm" name="project_id">
+          <option value="0">— General Upkeep —</option>
+          {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col-6 col-sm-4">
+        <label class="form-label form-label-sm mb-1">Start Date</label>
+        <input type="date" class="form-control form-control-sm" name="start_date"
+               value="{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}">
+      </div>
+      <div class="col-6 col-sm-4">
+        <label class="form-label form-label-sm mb-1">Due Date</label>
+        <input type="date" class="form-control form-control-sm" name="due_date"
+               value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
+      </div>
+    </div>
+    <div class="row g-2 mb-3 align-items-end">
+      <div class="col-auto">
+        <div class="form-check mt-1">
+          <input class="form-check-input edit-completed-check" type="checkbox"
+                 id="edit-completed-{{ task.id }}" name="completed"
+                 data-id="{{ task.id }}"
+                 {% if task.completed %}checked{% endif %}
+                 style="width:1.4rem; height:1.4rem;">
+          <label class="form-check-label form-label-sm ms-1" for="edit-completed-{{ task.id }}">
+            Completed
+          </label>
+        </div>
+      </div>
+      <div class="col-6 col-sm-4" id="completed-date-wrap-{{ task.id }}"
+           {% if not task.completed %}style="display:none"{% endif %}>
+        <label class="form-label form-label-sm mb-1">Completed Date</label>
+        <input type="date" class="form-control form-control-sm" name="completed_date"
+               id="completed-date-{{ task.id }}"
+               value="{{ task.completed_date.strftime('%Y-%m-%d') if task.completed_date else (task.finish_date.strftime('%Y-%m-%d') if task.finish_date else '') }}">
+      </div>
+    </div>
+    <div class="d-flex gap-2 mb-3">
+      <button type="button" class="btn btn-sm btn-primary save-task-btn" data-id="{{ task.id }}">
+        Save
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit-btn" data-id="{{ task.id }}">
+        Cancel
+      </button>
     </div>
 
+    {# ── Expenses ── #}
+    <hr class="my-0 mb-2">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="small fw-semibold text-muted"><i class="bi bi-receipt"></i> Expenses</span>
+      <button type="button" class="btn btn-sm btn-outline-primary add-expense-btn py-0"
+              data-id="{{ task.id }}">
+        <i class="bi bi-plus-lg"></i> Add
+      </button>
+    </div>
+    <div class="expense-list" id="expense-list-{{ task.id }}">
+      <div class="text-muted small text-center py-2 expense-loading">Loading…</div>
+    </div>
+    <div class="expense-total-row d-none d-flex justify-content-between small fw-semibold px-1 mt-1"
+         id="expense-total-{{ task.id }}">
+      <span>Total</span><span></span>
+    </div>
+
+    <hr class="my-2">
+    <button type="button" class="btn btn-sm btn-danger w-100 delete-task-btn"
+            data-id="{{ task.id }}" data-title="{{ task.title | e }}">
+      <i class="bi bi-trash"></i> Delete Task
+    </button>
   </div>
+
 </li>
 {% endmacro %}
 
-{# ── Incomplete tasks (sortable) ── #}
+{# ── Incomplete tasks (always sortable) ── #}
 {% if incomplete %}
 <div class="card mb-3">
-  <ul class="list-group list-group-flush" id="task-list"
-      data-sortable="{{ 'true' if sort_by == 'priority' else 'false' }}">
+  <ul class="list-group list-group-flush" id="task-list">
     {% for task in incomplete %}
-      {{ task_row(task, draggable=true) }}
+      {{ task_card(task) }}
     {% endfor %}
   </ul>
 </div>
@@ -122,15 +241,17 @@
 
 {# ── Completed tasks ── #}
 {% if completed_list %}
-<div class="text-muted small fw-semibold px-1 mb-2 mt-3">
-  <i class="bi bi-check-all"></i> Completed ({{ completed_list | length }})
-</div>
-<div class="card">
-  <ul class="list-group list-group-flush">
-    {% for task in completed_list %}
-      {{ task_row(task, draggable=false) }}
-    {% endfor %}
-  </ul>
+<div id="completed-section">
+  <div class="completed-header text-muted small fw-semibold px-1 mb-2 mt-3">
+    <i class="bi bi-check-all"></i> Completed ({{ completed_list | length }})
+  </div>
+  <div class="card">
+    <ul class="list-group list-group-flush">
+      {% for task in completed_list %}
+        {{ task_card(task) }}
+      {% endfor %}
+    </ul>
+  </div>
 </div>
 {% endif %}
 
@@ -140,6 +261,15 @@
   <p class="mt-2">Nothing on the honey-do list. <a href="{{ url_for('honey_do.add_task') }}">Add one!</a></p>
 </div>
 {% endif %}
+
+{# FAB for mobile #}
+<a href="{{ url_for('honey_do.add_task') }}" class="btn btn-primary fab" aria-label="Add task">
+  <i class="bi bi-plus-lg"></i>
+</a>
+
+{# Bottom padding so FAB doesn't cover last card on mobile #}
+<div class="d-md-none" style="height: 80px;"></div>
+
 {% endblock %}
 
 
@@ -147,10 +277,342 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const csrfToken = '{{ csrf_token() }}';
+const expenseCategories = {{ expense_categories | tojson }};
 
-// ── Sortable ────────────────────────────────────────────────────
+// ── Open / close inline edit ────────────────────────────────────────────────
+function openEdit(taskId) {
+  // Close any other open task first
+  document.querySelectorAll('.task-edit:not(.d-none)').forEach(el => {
+    const otherId = el.id.replace('edit-', '');
+    if (otherId !== String(taskId)) closeEdit(otherId);
+  });
+  document.getElementById('view-' + taskId).classList.add('d-none');
+  document.getElementById('edit-' + taskId).classList.remove('d-none');
+  loadExpenses(taskId);
+}
+
+function closeEdit(taskId) {
+  document.getElementById('edit-' + taskId).classList.add('d-none');
+  document.getElementById('view-' + taskId).classList.remove('d-none');
+}
+
+// Click on task row → open edit (but not if clicking the checkbox)
+document.querySelectorAll('.task-view').forEach(el => {
+  el.addEventListener('click', function (e) {
+    if (e.target.closest('.form-check')) return;
+    const clickable = this.querySelector('.task-clickable');
+    if (clickable) openEdit(clickable.dataset.id);
+  });
+});
+
+// Cancel
+document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    closeEdit(this.dataset.id);
+  });
+});
+
+// ── Completed checkbox in edit panel ────────────────────────────────────────
+document.querySelectorAll('.edit-completed-check').forEach(cb => {
+  cb.addEventListener('change', function () {
+    const id = this.dataset.id;
+    const wrap = document.getElementById('completed-date-wrap-' + id);
+    const dateField = document.getElementById('completed-date-' + id);
+    if (this.checked) {
+      wrap.style.display = '';
+      if (!dateField.value) {
+        dateField.value = new Date().toISOString().slice(0, 10);
+      }
+    } else {
+      wrap.style.display = 'none';
+      dateField.value = '';
+    }
+  });
+});
+
+// ── Load expenses via AJAX ───────────────────────────────────────────────────
+function loadExpenses(taskId) {
+  const container = document.getElementById('expense-list-' + taskId);
+  const totalRow = document.getElementById('expense-total-' + taskId);
+  container.innerHTML = '<div class="text-muted small text-center py-2">Loading…</div>';
+  totalRow.classList.add('d-none');
+
+  fetch('/house/honey-do/' + taskId + '/expenses')
+    .then(r => r.json())
+    .then(expenses => {
+      if (!expenses.length) {
+        container.innerHTML = '<div class="text-muted small text-center py-2">No expenses yet.</div>';
+        return;
+      }
+      let total = 0;
+      container.innerHTML = expenses.map(e => {
+        total += e.total;
+        const catOptions = expenseCategories.map(c =>
+          `<option value="${escHtml(c)}" ${c === e.category ? 'selected' : ''}>${escHtml(c)}</option>`
+        ).join('');
+        return `<div class="expense-item border-bottom" data-expense-id="${e.id}">
+          <div class="expense-view d-flex justify-content-between align-items-start small py-1 gap-2"
+               style="cursor:pointer" onclick="openExpenseEdit(${e.id})">
+            <div class="flex-grow-1">
+              <span class="fw-semibold">${escHtml(e.item)}</span>
+              <span class="text-muted ms-1">${escHtml(e.category)}</span>
+              ${e.description ? `<div class="text-muted">${escHtml(e.description)}</div>` : ''}
+              <div class="text-muted">${e.date_display}</div>
+            </div>
+            <div class="fw-semibold flex-shrink-0">$${e.total.toFixed(2)}</div>
+          </div>
+          <div class="expense-edit d-none py-2 px-1">
+            <div class="mb-1">
+              <button type="button" class="btn btn-sm btn-link p-0 text-secondary"
+                      onclick="closeExpenseEdit(${e.id})">
+                <i class="bi bi-arrow-left"></i> Back
+              </button>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-12">
+                <label class="form-label form-label-sm mb-1">Item</label>
+                <input type="text" class="form-control form-control-sm" name="item" value="${escHtml(e.item)}">
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Price ($)</label>
+                <input type="number" class="form-control form-control-sm" name="price"
+                       step="0.01" min="0" value="${e.price_raw.toFixed(2)}">
+              </div>
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Tax ($)</label>
+                <input type="number" class="form-control form-control-sm" name="tax"
+                       step="0.01" min="0" placeholder="auto (5.5%)"
+                       value="${e.tax_raw != null ? parseFloat(e.tax_raw).toFixed(2) : ''}">
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Date</label>
+                <input type="date" class="form-control form-control-sm" name="date" value="${e.date}">
+              </div>
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Category</label>
+                <select class="form-select form-select-sm" name="category">${catOptions}</select>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label form-label-sm mb-1">Notes</label>
+              <textarea class="form-control form-control-sm" name="description" rows="2">${escHtml(e.description)}</textarea>
+            </div>
+            <div class="d-flex gap-2 mb-2">
+              <button type="button" class="btn btn-sm btn-primary"
+                      onclick="saveExpense(${taskId}, ${e.id})">Save</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="closeExpenseEdit(${e.id})">Cancel</button>
+            </div>
+            <hr class="my-1">
+            <button type="button" class="btn btn-sm btn-danger w-100"
+                    onclick="deleteExpense(${taskId}, ${e.id})">
+              <i class="bi bi-trash"></i> Delete Expense
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+      totalRow.classList.remove('d-none');
+      totalRow.querySelector('span:last-child').textContent = '$' + total.toFixed(2);
+    });
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openExpenseEdit(expenseId) {
+  // Close any other open expense
+  document.querySelectorAll('.expense-edit:not(.d-none)').forEach(el => el.classList.add('d-none'));
+  document.querySelectorAll('.expense-view.d-none').forEach(el => el.classList.remove('d-none'));
+  const item = document.querySelector(`.expense-item[data-expense-id="${expenseId}"]`);
+  item.querySelector('.expense-view').classList.add('d-none');
+  item.querySelector('.expense-edit').classList.remove('d-none');
+}
+
+function closeExpenseEdit(expenseId) {
+  const item = document.querySelector(`.expense-item[data-expense-id="${expenseId}"]`);
+  item.querySelector('.expense-edit').classList.add('d-none');
+  item.querySelector('.expense-view').classList.remove('d-none');
+}
+
+function saveExpense(taskId, expenseId) {
+  const item = document.querySelector(`.expense-item[data-expense-id="${expenseId}"]`);
+  const edit = item.querySelector('.expense-edit');
+  const taxVal = edit.querySelector('[name=tax]').value;
+  const payload = {
+    item:        edit.querySelector('[name=item]').value.trim(),
+    price:       parseFloat(edit.querySelector('[name=price]').value),
+    tax:         taxVal ? parseFloat(taxVal) : null,
+    date:        edit.querySelector('[name=date]').value,
+    category:    edit.querySelector('[name=category]').value,
+    description: edit.querySelector('[name=description]').value.trim(),
+  };
+  fetch('/house/honey-do/expenses/' + expenseId + '/edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => { if (!data.error) loadExpenses(taskId); });
+}
+
+document.querySelectorAll('.add-expense-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const taskId = this.dataset.id;
+    const container = document.getElementById('expense-list-' + taskId);
+    // Don't add a second new-expense form if one is already open
+    if (container.querySelector('.new-expense-form')) return;
+    const catOptions = expenseCategories.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+    const form = document.createElement('div');
+    form.className = 'new-expense-form border-bottom py-2 px-1';
+    form.innerHTML = `
+      <div class="mb-1">
+        <button type="button" class="btn btn-sm btn-link p-0 text-secondary cancel-new-expense">
+          <i class="bi bi-arrow-left"></i> Back
+        </button>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-12">
+          <label class="form-label form-label-sm mb-1">Item</label>
+          <input type="text" class="form-control form-control-sm" name="item">
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label form-label-sm mb-1">Price ($)</label>
+          <input type="number" class="form-control form-control-sm" name="price" step="0.01" min="0">
+        </div>
+        <div class="col-6">
+          <label class="form-label form-label-sm mb-1">Tax ($)</label>
+          <input type="number" class="form-control form-control-sm" name="tax" step="0.01" min="0" placeholder="auto (5.5%)">
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label form-label-sm mb-1">Date</label>
+          <input type="date" class="form-control form-control-sm" name="date"
+                 value="${new Date().toISOString().slice(0,10)}">
+        </div>
+        <div class="col-6">
+          <label class="form-label form-label-sm mb-1">Category</label>
+          <select class="form-select form-select-sm" name="category">${catOptions}</select>
+        </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label form-label-sm mb-1">Notes</label>
+        <textarea class="form-control form-control-sm" name="description" rows="2"></textarea>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-primary save-new-expense" data-task="${taskId}">Save</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary cancel-new-expense">Cancel</button>
+      </div>`;
+    container.insertBefore(form, container.firstChild);
+    form.querySelector('.cancel-new-expense').addEventListener('click', () => form.remove());
+    form.querySelector('.save-new-expense').addEventListener('click', function () {
+      const taxVal = form.querySelector('[name=tax]').value;
+      const payload = {
+        item:        form.querySelector('[name=item]').value.trim(),
+        price:       parseFloat(form.querySelector('[name=price]').value),
+        tax:         taxVal ? parseFloat(taxVal) : null,
+        date:        form.querySelector('[name=date]').value,
+        category:    form.querySelector('[name=category]').value,
+        description: form.querySelector('[name=description]').value.trim(),
+      };
+      if (!payload.item || !payload.price || !payload.date) {
+        alert('Item, price, and date are required.'); return;
+      }
+      fetch('/house/honey-do/' + taskId + '/expenses/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify(payload),
+      })
+      .then(r => r.json())
+      .then(data => { if (!data.error) loadExpenses(taskId); });
+    });
+  });
+});
+
+function deleteExpense(taskId, expenseId) {
+  if (!confirm('Remove this expense?')) return;
+  fetch('/house/honey-do/expenses/' + expenseId + '/delete', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken },
+  })
+  .then(r => r.json())
+  .then(() => loadExpenses(taskId));
+}
+
+// ── Save (AJAX) ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.save-task-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const id = this.dataset.id;
+    const editDiv = document.getElementById('edit-' + id);
+    const cdField = editDiv.querySelector('[name=completed_date]');
+    const completedCheck = editDiv.querySelector('[name=completed]');
+    const data = {
+      title:          editDiv.querySelector('[name=title]').value,
+      description:    editDiv.querySelector('[name=description]').value,
+      project_id:     editDiv.querySelector('[name=project_id]').value,
+      priority:       editDiv.querySelector('[name=priority]').value,
+      timeline:       editDiv.querySelector('[name=timeline]').value,
+      start_date:     editDiv.querySelector('[name=start_date]').value,
+      due_date:       editDiv.querySelector('[name=due_date]').value,
+      completed:      completedCheck ? completedCheck.checked : false,
+      completed_date: cdField ? cdField.value : '',
+    };
+    fetch('/house/honey-do/' + id + '/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify(data),
+    })
+    .then(r => {
+      if (r.ok) window.location.reload();
+    });
+  });
+});
+
+// ── Delete ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.delete-task-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const id = this.dataset.id;
+    const title = this.dataset.title;
+    if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/house/honey-do/' + id + '/delete';
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = csrfToken;
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+  });
+});
+
+// ── Complete checkbox ────────────────────────────────────────────────────────
+document.querySelectorAll('.complete-check').forEach(cb => {
+  cb.addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+  cb.addEventListener('change', function () {
+    const id = this.dataset.id;
+    fetch('/house/honey-do/' + id + '/complete', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
+    })
+    .then(r => { if (r.ok) window.location.reload(); })
+    .catch(() => window.location.reload());
+  });
+});
+
+// ── Drag-and-drop (always on for incomplete tasks) ───────────────────────────
 const taskList = document.getElementById('task-list');
-if (taskList && taskList.dataset.sortable === 'true') {
+if (taskList) {
   Sortable.create(taskList, {
     handle: '.drag-handle',
     animation: 150,
@@ -167,18 +629,5 @@ if (taskList && taskList.dataset.sortable === 'true') {
     },
   });
 }
-
-// ── Complete checkbox ────────────────────────────────────────────
-document.querySelectorAll('.complete-check').forEach(cb => {
-  cb.addEventListener('change', function () {
-    const id = this.dataset.id;
-    fetch(`/house/honey-do/${id}/complete`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': csrfToken },
-    })
-    .then(r => r.json())
-    .then(() => window.location.reload());
-  });
-});
 </script>
 {% endblock %}
