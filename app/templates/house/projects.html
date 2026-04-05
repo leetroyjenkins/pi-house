@@ -13,7 +13,7 @@
         <i class="bi bi-grid"></i>
       </button>
     </div>
-    <a href="{{ url_for('house.add_project') }}" class="btn btn-primary btn-sm">
+    <a href="{{ url_for('house.add_project') }}" class="btn btn-primary btn-sm btn-add-inline">
       <i class="bi bi-plus-lg"></i> Add Project
     </a>
   </div>
@@ -32,58 +32,135 @@
 {# ---- TILE VIEW ---- #}
 <div id="viewTiles" class="row g-3">
   {% for p in projects %}
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-1">
-          <h5 class="card-title mb-0">{{ p.name }}</h5>
-          <span class="badge bg-{{ status_colors.get(p.status, 'secondary') }}">{{ p.status }}</span>
+  <div class="col-md-6 col-xl-4 project-col" id="col-{{ p.id }}">
+    <div class="card h-100 project-item" data-id="{{ p.id }}">
+
+      {# ── VIEW MODE ── #}
+      <div class="project-view" id="view-{{ p.id }}" style="cursor:pointer;">
+        <div class="card-body project-clickable" data-id="{{ p.id }}">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h5 class="card-title mb-0">{{ p.name }}</h5>
+            <span class="badge bg-{{ status_colors.get(p.status, 'secondary') }}">{{ p.status }}</span>
+          </div>
+          {% if p.room %}<div class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> {{ p.room }}</div>{% endif %}
+          {% if p.description %}<p class="card-text small text-muted mt-1">{{ p.description[:120] }}{% if p.description|length > 120 %}…{% endif %}</p>{% endif %}
+
+          <div class="row g-2 mt-1 text-center">
+            <div class="col-6">
+              <div class="border rounded p-2">
+                <div class="text-muted" style="font-size:.7rem">SPENT</div>
+                <div class="fw-semibold">${{ "%.2f"|format(p.total_with_tax) }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="border rounded p-2">
+                <div class="text-muted" style="font-size:.7rem">BUDGET</div>
+                <div class="fw-semibold">{% if p.budget %}${{ "%.2f"|format(p.budget) }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+              </div>
+            </div>
+          </div>
+
+          {% if p.budget and p.total_with_tax %}
+            {% set pct = [(p.total_with_tax / p.budget * 100), 100]|min %}
+            <div class="mt-2">
+              <div class="d-flex justify-content-between" style="font-size:.75rem">
+                <span>{{ "%.0f"|format(pct) }}% of budget</span>
+                {% if p.total_with_tax > p.budget %}<span class="text-danger">Over budget!</span>{% endif %}
+              </div>
+              <div class="progress" style="height:6px">
+                <div class="progress-bar {% if p.total_with_tax > p.budget %}bg-danger{% endif %}" style="width:{{ pct }}%"></div>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="mt-2" style="font-size:.75rem; color:#6c757d">
+            {% if p.start_date %}Start: {{ p.start_date.strftime('%b %d, %Y') }}{% endif %}
+            {% if p.due_date %} · Due: {{ p.due_date.strftime('%b %d, %Y') }}{% endif %}
+            {% if p.completed_date %} · Completed: {{ p.completed_date.strftime('%b %d, %Y') }}{% endif %}
+          </div>
         </div>
-        {% if p.room %}<div class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> {{ p.room }}</div>{% endif %}
-        {% if p.description %}<p class="card-text small text-muted mt-1">{{ p.description[:120] }}{% if p.description|length > 120 %}…{% endif %}</p>{% endif %}
-
-        <div class="row g-2 mt-1 text-center">
-          <div class="col-6">
-            <div class="border rounded p-2">
-              <div class="text-muted" style="font-size:.7rem">SPENT</div>
-              <div class="fw-semibold">${{ "%.2f"|format(p.total_with_tax) }}</div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="border rounded p-2">
-              <div class="text-muted" style="font-size:.7rem">BUDGET</div>
-              <div class="fw-semibold">{% if p.budget %}${{ "%.2f"|format(p.budget) }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
-            </div>
-          </div>
-        </div>
-
-        {% if p.budget and p.total_with_tax %}
-          {% set pct = [(p.total_with_tax / p.budget * 100), 100]|min %}
-          <div class="mt-2">
-            <div class="d-flex justify-content-between" style="font-size:.75rem">
-              <span>{{ "%.0f"|format(pct) }}% of budget</span>
-              {% if p.total_with_tax > p.budget %}<span class="text-danger">Over budget!</span>{% endif %}
-            </div>
-            <div class="progress" style="height:6px">
-              <div class="progress-bar {% if p.total_with_tax > p.budget %}bg-danger{% endif %}" style="width:{{ pct }}%"></div>
-            </div>
-          </div>
-        {% endif %}
-
-        <div class="mt-2" style="font-size:.75rem; color:#6c757d">
-          {% if p.start_date %}Start: {{ p.start_date.strftime('%b %d, %Y') }}{% endif %}
-          {% if p.estimated_end_date %} · Est. end: {{ p.estimated_end_date.strftime('%b %d, %Y') }}{% endif %}
-          {% if p.actual_end_date %} · Completed: {{ p.actual_end_date.strftime('%b %d, %Y') }}{% endif %}
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+          <a href="{{ url_for('house.index') }}?project_id={{ p.id }}" class="btn btn-sm btn-outline-secondary"
+             onclick="event.stopPropagation()">
+            <i class="bi bi-receipt"></i> View Expenses
+          </a>
+          <span class="text-muted small"><i class="bi bi-pencil"></i> tap to edit</span>
         </div>
       </div>
-      <div class="card-footer d-flex justify-content-between align-items-center py-2">
-        <a href="{{ url_for('house.index') }}?project_id={{ p.id }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-receipt"></i> View Expenses
-        </a>
-        <a href="{{ url_for('house.edit_project', project_id=p.id) }}" class="btn btn-sm btn-outline-primary">
-          <i class="bi bi-pencil"></i> Edit
-        </a>
+
+      {# ── EDIT MODE (hidden until tile clicked) ── #}
+      <div class="project-edit d-none px-3 pt-2 pb-3" id="edit-{{ p.id }}">
+        <div class="mb-2">
+          <button type="button" class="btn btn-sm btn-link p-0 text-secondary cancel-edit-btn"
+                  data-id="{{ p.id }}">
+            <i class="bi bi-arrow-left"></i> Back
+          </button>
+        </div>
+        <div class="mb-2">
+          <label class="form-label form-label-sm mb-1">Name</label>
+          <input type="text" class="form-control form-control-sm" name="name" value="{{ p.name }}">
+        </div>
+        <div class="mb-2">
+          <label class="form-label form-label-sm mb-1">Description</label>
+          <textarea class="form-control form-control-sm" name="description" rows="2">{{ p.description or '' }}</textarea>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label form-label-sm mb-1">Status</label>
+            <select class="form-select form-select-sm" name="status">
+              <option value="planning"    {% if p.status == 'planning' %}selected{% endif %}>Planning</option>
+              <option value="in-progress" {% if p.status == 'in-progress' %}selected{% endif %}>In Progress</option>
+              <option value="on-hold"     {% if p.status == 'on-hold' %}selected{% endif %}>On Hold</option>
+              <option value="completed"   {% if p.status == 'completed' %}selected{% endif %}>Completed</option>
+              <option value="abandoned"   {% if p.status == 'abandoned' %}selected{% endif %}>Abandoned</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label form-label-sm mb-1">Room</label>
+            <input type="text" class="form-control form-control-sm" name="room" value="{{ p.room or '' }}">
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label form-label-sm mb-1">Budget ($)</label>
+          <input type="number" class="form-control form-control-sm" name="budget"
+                 step="0.01" min="0" value="{{ '%.2f'|format(p.budget) if p.budget else '' }}">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-sm-4">
+            <label class="form-label form-label-sm mb-1">Start Date</label>
+            <input type="date" class="form-control form-control-sm" name="start_date"
+                   value="{{ p.start_date.strftime('%Y-%m-%d') if p.start_date else '' }}">
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label form-label-sm mb-1">Due Date</label>
+            <input type="date" class="form-control form-control-sm" name="due_date"
+                   value="{{ p.due_date.strftime('%Y-%m-%d') if p.due_date else '' }}">
+          </div>
+          <div class="col-12 col-sm-4">
+            <label class="form-label form-label-sm mb-1">Completed Date</label>
+            <input type="date" class="form-control form-control-sm" name="completed_date"
+                   value="{{ p.completed_date.strftime('%Y-%m-%d') if p.completed_date else '' }}">
+          </div>
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button type="button" class="btn btn-sm btn-primary save-project-btn" data-id="{{ p.id }}">
+            Save
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit-btn" data-id="{{ p.id }}">
+            Cancel
+          </button>
+          <a href="{{ url_for('house.index') }}?project_id={{ p.id }}"
+             class="btn btn-sm btn-outline-secondary ms-auto">
+            <i class="bi bi-receipt"></i> Expenses
+          </a>
+        </div>
+        <hr class="my-0 mb-2">
+        <button type="button" class="btn btn-sm btn-danger w-100 delete-project-btn"
+                data-id="{{ p.id }}" data-name="{{ p.name | e }}">
+          <i class="bi bi-trash"></i> Delete Project
+        </button>
       </div>
+
     </div>
   </div>
   {% endfor %}
@@ -98,7 +175,7 @@
           <tr>
             <th>Project</th><th>Status</th><th>Room</th>
             <th class="text-end">Budget</th><th class="text-end">Spent</th><th class="text-end">% Used</th>
-            <th>Start</th><th>Est. End</th><th></th>
+            <th>Start</th><th>Due</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +196,7 @@
               {% else %}—{% endif %}
             </td>
             <td class="text-nowrap">{{ p.start_date.strftime('%Y-%m-%d') if p.start_date else '—' }}</td>
-            <td class="text-nowrap">{{ p.estimated_end_date.strftime('%Y-%m-%d') if p.estimated_end_date else '—' }}</td>
+            <td class="text-nowrap">{{ p.due_date.strftime('%Y-%m-%d') if p.due_date else '—' }}</td>
             <td class="text-nowrap">
               <a href="{{ url_for('house.index') }}?project_id={{ p.id }}" class="btn btn-sm btn-outline-secondary py-0">
                 <i class="bi bi-receipt"></i>
@@ -141,10 +218,21 @@
     No projects yet. <a href="{{ url_for('house.add_project') }}">Add your first project</a>.
   </div></div>
 {% endif %}
+
+{# FAB for mobile #}
+<a href="{{ url_for('house.add_project') }}" class="btn btn-primary fab" aria-label="Add project">
+  <i class="bi bi-plus-lg"></i>
+</a>
+
+<div class="d-md-none" style="height: 80px;"></div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+const csrfToken = '{{ csrf_token() }}';
+
+// ── View toggle ──────────────────────────────────────────────────────────────
 (function() {
   var PREF_KEY = 'projects_view';
   var btnTable = document.getElementById('btnTable');
@@ -158,12 +246,14 @@
       viewTiles.classList.add('d-none');
       viewTable.classList.remove('d-none');
       btnTable.classList.replace('btn-outline-secondary', 'btn-secondary');
-      btnTiles.classList.replace('btn-secondary', 'btn-outline-secondary');
+      if (btnTiles.classList.contains('btn-secondary'))
+        btnTiles.classList.replace('btn-secondary', 'btn-outline-secondary');
     } else {
       viewTable.classList.add('d-none');
       viewTiles.classList.remove('d-none');
       btnTiles.classList.replace('btn-outline-secondary', 'btn-secondary');
-      btnTable.classList.replace('btn-secondary', 'btn-outline-secondary');
+      if (btnTable.classList.contains('btn-secondary'))
+        btnTable.classList.replace('btn-secondary', 'btn-outline-secondary');
     }
     localStorage.setItem(PREF_KEY, mode);
   }
@@ -172,5 +262,89 @@
   btnTiles.addEventListener('click',  function() { setView('tiles'); });
   setView(localStorage.getItem(PREF_KEY) || 'tiles');
 })();
+
+// ── Open / close inline edit ─────────────────────────────────────────────────
+function openEdit(projectId) {
+  // Close any other open project first
+  document.querySelectorAll('.project-edit:not(.d-none)').forEach(el => {
+    const otherId = el.id.replace('edit-', '');
+    if (otherId !== String(projectId)) closeEdit(otherId);
+  });
+  document.getElementById('view-' + projectId).classList.add('d-none');
+  document.getElementById('edit-' + projectId).classList.remove('d-none');
+  // Make tile full-width while editing for comfortable form layout
+  const col = document.getElementById('col-' + projectId);
+  if (col) {
+    col.dataset.origClass = col.className;
+    col.className = 'col-12 project-col';
+  }
+}
+
+function closeEdit(projectId) {
+  document.getElementById('edit-' + projectId).classList.add('d-none');
+  document.getElementById('view-' + projectId).classList.remove('d-none');
+  const col = document.getElementById('col-' + projectId);
+  if (col && col.dataset.origClass) {
+    col.className = col.dataset.origClass;
+  }
+}
+
+// Click on view area → open edit
+document.querySelectorAll('.project-clickable').forEach(el => {
+  el.addEventListener('click', function() {
+    openEdit(this.dataset.id);
+  });
+});
+
+// Cancel buttons
+document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    closeEdit(this.dataset.id);
+  });
+});
+
+// ── Save (AJAX) ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.save-project-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    const editDiv = document.getElementById('edit-' + id);
+    const data = {
+      name:               editDiv.querySelector('[name=name]').value.trim(),
+      description:        editDiv.querySelector('[name=description]').value.trim(),
+      status:             editDiv.querySelector('[name=status]').value,
+      room:               editDiv.querySelector('[name=room]').value.trim(),
+      budget:             editDiv.querySelector('[name=budget]').value,
+      start_date:         editDiv.querySelector('[name=start_date]').value,
+      due_date:           editDiv.querySelector('[name=due_date]').value,
+      completed_date:     editDiv.querySelector('[name=completed_date]').value,
+    };
+    if (!data.name) { alert('Project name is required.'); return; }
+    fetch('/house/projects/' + id + '/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify(data),
+    })
+    .then(r => { if (r.ok) window.location.reload(); });
+  });
+});
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.delete-project-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    const name = this.dataset.name;
+    if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/house/projects/' + id + '/delete';
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = csrfToken;
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+  });
+});
 </script>
 {% endblock %}

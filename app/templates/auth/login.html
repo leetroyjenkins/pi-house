@@ -6,7 +6,7 @@
   <div class="col-sm-8 col-md-5 col-lg-4">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h2 class="h5 mb-4 text-center">Budget App</h2>
+        <h2 class="h5 mb-4 text-center">Pi House</h2>
         <form method="post" id="loginForm">
           {{ form.hidden_tag() }}
           <div id="loginError" class="alert alert-danger d-none"></div>
@@ -22,25 +22,6 @@
           </div>
           <button type="submit" class="btn btn-primary w-100">Sign In</button>
         </form>
-        <script>
-          document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const errDiv = document.getElementById('loginError');
-            errDiv.classList.add('d-none');
-            const resp = await fetch(window.location.href, {
-              method: 'POST',
-              headers: { 'X-Requested-With': 'XMLHttpRequest' },
-              body: new FormData(this),
-            });
-            const data = await resp.json();
-            if (data.ok) {
-              window.location.replace(data.redirect);
-            } else {
-              errDiv.textContent = data.error;
-              errDiv.classList.remove('d-none');
-            }
-          });
-        </script>
       </div>
     </div>
   </div>

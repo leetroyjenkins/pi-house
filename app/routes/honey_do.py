@@ -17,7 +17,7 @@ def require_login():
 
 def _populate_task_form_choices(form):
     projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
-    form.project_id.choices = [(0, '— General House Upkeep —')] + [(p.id, p.name) for p in projects]
+    form.project_id.choices = [(0, '— No Project —')] + [(p.id, p.name) for p in projects]
 
 
 def _expense_json(e):
@@ -199,6 +199,7 @@ def detail(task_id):
     expenses = HouseExpense.query.filter_by(task_id=task_id, is_active=True)\
         .order_by(HouseExpense.expenditure_date.desc()).all()
     total = sum(e.total_with_tax for e in expenses)
+    all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
     return render_template(
         'house/honey_do_detail.html',
         task=task,
@@ -206,6 +207,7 @@ def detail(task_id):
         total=total,
         today=date.today(),
         expense_categories=HOUSE_EXPENSE_CATEGORIES,
+        all_projects=all_projects,
     )
 
 

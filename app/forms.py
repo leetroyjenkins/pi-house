@@ -41,16 +41,16 @@ class HouseProjectForm(FlaskForm):
     budget = DecimalField('Estimated Budget ($)', validators=[Optional(), NumberRange(min=0)], places=2)
     room = StringField('Room / Area', validators=[Optional(), Length(max=100)])
     start_date = DateField('Start Date', validators=[Optional()])
-    estimated_end_date = DateField('Estimated End Date', validators=[Optional()])
-    actual_end_date = DateField('Actual End Date', validators=[Optional()])
+    due_date = DateField('Due Date', validators=[Optional()])
+    completed_date = DateField('Completed Date', validators=[Optional()])
 
-    def validate_estimated_end_date(self, field):
+    def validate_due_date(self, field):
         if field.data and self.start_date.data and field.data < self.start_date.data:
-            raise ValidationError('Estimated end date must be on or after start date.')
+            raise ValidationError('Due date must be on or after start date.')
 
-    def validate_actual_end_date(self, field):
+    def validate_completed_date(self, field):
         if field.data and self.start_date.data and field.data < self.start_date.data:
-            raise ValidationError('Actual end date must be on or after start date.')
+            raise ValidationError('Completed date must be on or after start date.')
 
 
 class HouseTaskForm(FlaskForm):
