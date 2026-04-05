@@ -1,5 +1,5 @@
 def main():
-    print("Hello from personal-budget!")
+    print("Hello from pi-house!")
 
 
 if __name__ == "__main__":

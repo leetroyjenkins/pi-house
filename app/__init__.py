@@ -130,6 +130,21 @@ def create_app():
                 except Exception as e:
                     click.echo(f'Skipped (may already exist): {e}')
 
+    # CLI command: flask migrate-project-dates
+    @app.cli.command('migrate-project-dates')
+    def migrate_project_dates():
+        """Rename estimated_end_date → due_date and actual_end_date → completed_date on house_projects."""
+        with db.engine.connect() as conn:
+            for old_col, new_col in [('estimated_end_date', 'due_date'), ('actual_end_date', 'completed_date')]:
+                try:
+                    conn.execute(db.text(
+                        f'ALTER TABLE house_projects RENAME COLUMN {old_col} TO {new_col}'
+                    ))
+                    conn.commit()
+                    click.echo(f'Renamed {old_col} → {new_col}')
+                except Exception as e:
+                    click.echo(f'Skipped {old_col} (may already be renamed): {e}')
+
     # CLI command: flask create-user
     @app.cli.command('create-user')
     @click.argument('username')

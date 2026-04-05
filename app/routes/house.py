@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, make_response
+from flask import Blueprint, render_template, redirect, url_for, request, flash, make_response, jsonify
 from flask_login import login_required
 import json
 from app import db
@@ -219,8 +219,8 @@ def add_project():
             budget=form.budget.data,
             room=form.room.data.strip() if form.room.data else None,
             start_date=form.start_date.data,
-            estimated_end_date=form.estimated_end_date.data,
-            actual_end_date=form.actual_end_date.data,
+            due_date=form.due_date.data,
+            completed_date=form.completed_date.data,
         )
         db.session.add(project)
         db.session.commit()
@@ -247,8 +247,8 @@ def edit_project(project_id):
         project.budget = form.budget.data
         project.room = form.room.data.strip() if form.room.data else None
         project.start_date = form.start_date.data
-        project.estimated_end_date = form.estimated_end_date.data
-        project.actual_end_date = form.actual_end_date.data
+        project.due_date = form.due_date.data
+        project.completed_date = form.completed_date.data
         db.session.commit()
         flash(f'Project "{project.name}" updated.', 'success')
         return redirect(url_for('house.projects'))
@@ -263,6 +263,43 @@ def delete_project(project_id):
     db.session.commit()
     flash(f'Project "{project.name}" removed.', 'info')
     return redirect(url_for('house.projects'))
+
+
+@bp.route('/projects/quick-add', methods=['POST'])
+def quick_add_project():
+    data = request.get_json()
+    if not data or not (data.get('name') or '').strip():
+        return jsonify({'error': 'Name is required'}), 400
+    project = HouseProject(
+        name=data['name'].strip(),
+        status=data.get('status', 'planning'),
+        room=data.get('room', '').strip() or None,
+    )
+    db.session.add(project)
+    db.session.commit()
+    return jsonify({'id': project.id, 'name': project.name})
+
+
+@bp.route('/projects/<int:project_id>/update', methods=['POST'])
+def update_project(project_id):
+    project = HouseProject.query.get_or_404(project_id)
+    data = request.get_json()
+
+    def parse_date(s):
+        from datetime import date as _date
+        return _date.fromisoformat(s) if s else None
+
+    project.name = (data.get('name') or '').strip() or project.name
+    project.description = (data.get('description') or '').strip() or None
+    project.status = data.get('status') or project.status
+    budget = data.get('budget')
+    project.budget = float(budget) if budget else None
+    project.room = (data.get('room') or '').strip() or None
+    project.start_date = parse_date(data.get('start_date'))
+    project.due_date = parse_date(data.get('due_date'))
+    project.completed_date = parse_date(data.get('completed_date'))
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ---------------------------------------------------------------------------

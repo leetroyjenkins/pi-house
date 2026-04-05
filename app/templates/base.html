@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}Budget App{% endblock %}</title>
+  <title>{% block title %}Pi House{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
@@ -65,7 +65,7 @@
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-3">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/">Budget App</a>
+    <a class="navbar-brand" href="/">Pi House</a>
     {% if current_user.is_authenticated %}
     <div class="d-flex align-items-center ms-auto me-2">
       <a href="{{ url_for('auth.profile') }}" class="text-secondary me-2 text-decoration-none" title="{{ current_user.username }}">
@@ -133,6 +133,45 @@
   {% block content %}{% endblock %}
 </div>
 
+{# ── Add Project Modal (shared across all pages) ── #}
+<div class="modal fade" id="addProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-kanban me-2"></i>Add Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Project Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="newProjectName" placeholder="e.g. Bathroom Remodel">
+          <div class="invalid-feedback">Name is required.</div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="newProjectStatus">
+              <option value="planning">Planning</option>
+              <option value="in-progress">In Progress</option>
+              <option value="on-hold">On Hold</option>
+              <option value="completed">Completed</option>
+              <option value="abandoned">Abandoned</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Room</label>
+            <input type="text" class="form-control" id="newProjectRoom" placeholder="e.g. Kitchen">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewProjectBtn">Save Project</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
@@ -143,6 +182,49 @@
       if (nav.classList.contains('show')) {
         bootstrap.Collapse.getInstance(nav)?.hide();
       }
+    });
+  });
+
+  // ── Shared Add Project Modal ──────────────────────────────────────────────
+  let _addProjectCallback = null;
+  const _addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
+
+  function openAddProjectModal(onSuccess) {
+    _addProjectCallback = onSuccess;
+    const nameEl = document.getElementById('newProjectName');
+    nameEl.value = '';
+    nameEl.classList.remove('is-invalid');
+    document.getElementById('newProjectStatus').value = 'planning';
+    document.getElementById('newProjectRoom').value = '';
+    _addProjectModal.show();
+    document.getElementById('addProjectModal').addEventListener(
+      'shown.bs.modal', () => nameEl.focus(), { once: true }
+    );
+  }
+
+  document.getElementById('saveNewProjectBtn').addEventListener('click', function () {
+    const nameEl = document.getElementById('newProjectName');
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.classList.add('is-invalid'); nameEl.focus(); return; }
+    nameEl.classList.remove('is-invalid');
+
+    fetch('/house/projects/quick-add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
+      body: JSON.stringify({
+        name,
+        status: document.getElementById('newProjectStatus').value,
+        room: document.getElementById('newProjectRoom').value.trim(),
+      }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      _addProjectModal.hide();
+      if (_addProjectCallback) _addProjectCallback(data);
     });
   });
 </script>

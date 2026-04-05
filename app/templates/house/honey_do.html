@@ -17,7 +17,7 @@
       <label class="form-label form-label-sm mb-1">Project</label>
       <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All</option>
-        <option value="0" {% if filter_project_id == 0 %}selected{% endif %}>General Upkeep</option>
+        <option value="0" {% if filter_project_id == 0 %}selected{% endif %}>No Project</option>
         {% for p in all_projects %}
           <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
         {% endfor %}
@@ -151,12 +151,18 @@
       </div>
       <div class="col-12 col-sm-4">
         <label class="form-label form-label-sm mb-1">Project</label>
-        <select class="form-select form-select-sm" name="project_id">
-          <option value="0">— General Upkeep —</option>
-          {% for p in all_projects %}
-            <option value="{{ p.id }}" {% if task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-          {% endfor %}
-        </select>
+        <div class="d-flex gap-1">
+          <select class="form-select form-select-sm" name="project_id">
+            <option value="0">— No Project —</option>
+            {% for p in all_projects %}
+              <option value="{{ p.id }}" {% if task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 add-project-popup-btn"
+                  title="Add new project" style="padding: 0 .4rem;">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
       </div>
     </div>
     <div class="row g-2 mb-2">
@@ -607,6 +613,24 @@ document.querySelectorAll('.complete-check').forEach(cb => {
     })
     .then(r => { if (r.ok) window.location.reload(); })
     .catch(() => window.location.reload());
+  });
+});
+
+// ── Add project modal ────────────────────────────────────────────────────────
+document.querySelectorAll('.add-project-popup-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const targetSelect = this.closest('.d-flex').querySelector('select[name=project_id]');
+    openAddProjectModal(function (project) {
+      document.querySelectorAll('select[name=project_id]').forEach(sel => {
+        if (!sel.querySelector(`option[value="${project.id}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = project.id;
+          opt.textContent = project.name;
+          sel.appendChild(opt);
+        }
+      });
+      targetSelect.value = project.id;
+    });
   });
 });
 

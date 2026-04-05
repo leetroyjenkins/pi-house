@@ -56,11 +56,26 @@
             {% endif %}
           {% endif %}
 
-          {% if task.project %}
-            <span class="badge bg-secondary">{{ task.project.name }}</span>
-          {% else %}
-            <span class="badge bg-light text-secondary border">General Upkeep</span>
-          {% endif %}
+          <span class="badge bg-secondary" id="projectBadge" style="cursor:pointer;" onclick="toggleProjectEdit()" title="Click to change project">
+            {{ task.project.name if task.project else 'No Project' }}
+          </span>
+        </div>
+
+        {# Inline project editor #}
+        <div class="d-none mb-3" id="projectEditRow">
+          <div class="d-flex gap-1 align-items-center">
+            <select class="form-select form-select-sm" id="projectSelect" style="max-width:220px;">
+              <option value="0">— No Project —</option>
+              {% for p in all_projects %}
+                <option value="{{ p.id }}" {% if task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="addProjectPopupBtn" title="Add new project" style="padding:0 .4rem;">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveProject()">Save</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleProjectEdit()">Cancel</button>
+          </div>
         </div>
 
         {% if task.description %}
@@ -336,5 +351,37 @@ function deleteExpense(expenseId) {
   .then(r => r.json())
   .then(() => window.location.reload());
 }
+
+// ── Project inline editor ────────────────────────────────────────────────────
+function toggleProjectEdit() {
+  const row = document.getElementById('projectEditRow');
+  const badge = document.getElementById('projectBadge');
+  const hidden = row.classList.contains('d-none');
+  row.classList.toggle('d-none', !hidden);
+  badge.classList.toggle('d-none', hidden);
+}
+
+function saveProject() {
+  const pid = parseInt(document.getElementById('projectSelect').value) || 0;
+  fetch(`/house/honey-do/${taskId}/update`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({ project_id: pid }),
+  })
+  .then(r => { if (r.ok) window.location.reload(); });
+}
+
+document.getElementById('addProjectPopupBtn').addEventListener('click', function () {
+  openAddProjectModal(function (project) {
+    const sel = document.getElementById('projectSelect');
+    if (!sel.querySelector(`option[value="${project.id}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = project.id;
+      opt.textContent = project.name;
+      sel.appendChild(opt);
+    }
+    sel.value = project.id;
+  });
+});
 </script>
 {% endblock %}

@@ -57,15 +57,15 @@
             </div>
 
             <div class="col-sm-4">
-              <label class="form-label">{{ form.estimated_end_date.label.text }}</label>
-              {{ form.estimated_end_date(class="form-control" + (" is-invalid" if form.estimated_end_date.errors else "")) }}
-              {% for e in form.estimated_end_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              <label class="form-label">{{ form.due_date.label.text }}</label>
+              {{ form.due_date(class="form-control" + (" is-invalid" if form.due_date.errors else "")) }}
+              {% for e in form.due_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
             </div>
 
             <div class="col-sm-4">
-              <label class="form-label">{{ form.actual_end_date.label.text }}</label>
-              {{ form.actual_end_date(class="form-control" + (" is-invalid" if form.actual_end_date.errors else "")) }}
-              {% for e in form.actual_end_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              <label class="form-label">{{ form.completed_date.label.text }}</label>
+              {{ form.completed_date(class="form-control" + (" is-invalid" if form.completed_date.errors else "")) }}
+              {% for e in form.completed_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
             </div>
           </div>
 

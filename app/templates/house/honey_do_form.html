@@ -39,7 +39,13 @@
 
           <div class="mb-3">
             {{ form.project_id.label(class="form-label") }}
-            {{ form.project_id(class="form-select") }}
+            <div class="d-flex gap-1">
+              {{ form.project_id(class="form-select", id="projectSelect") }}
+              <button type="button" class="btn btn-outline-secondary flex-shrink-0" id="addProjectPopupBtn"
+                      title="Add new project" style="padding: 0 .6rem;">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
           </div>
 
           <div class="row g-3 mb-3">
@@ -69,4 +75,21 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('addProjectPopupBtn').addEventListener('click', function () {
+  openAddProjectModal(function (project) {
+    const sel = document.getElementById('projectSelect');
+    if (!sel.querySelector(`option[value="${project.id}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = project.id;
+      opt.textContent = project.name;
+      sel.appendChild(opt);
+    }
+    sel.value = project.id;
+  });
+});
+</script>
 {% endblock %}
