@@ -234,7 +234,9 @@ def add_expense():
         expense = HouseExpense(
             expenditure_date=form.expenditure_date.data,
             entered_date=date.today(),
+            estimated_cost=form.estimated_cost.data if form.estimated_cost.data is not None else None,
             price=form.price.data,
+            taxable=form.taxable.data,
             tax=form.tax.data if form.tax.data is not None else None,
             item=form.item.data.strip(),
             description=form.description.data.strip() if form.description.data else None,
@@ -255,6 +257,12 @@ def add_expense():
     return render_template('house/expense_form.html', form=form, title='Add Expense')
 
 
+@bp.route('/expenses/<int:expense_id>')
+def expense_detail(expense_id):
+    expense = HouseExpense.query.get_or_404(expense_id)
+    return render_template('house/expense_detail.html', expense=expense)
+
+
 @bp.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
 def edit_expense(expense_id):
     expense = HouseExpense.query.get_or_404(expense_id)
@@ -263,7 +271,9 @@ def edit_expense(expense_id):
 
     if form.validate_on_submit():
         expense.expenditure_date = form.expenditure_date.data
+        expense.estimated_cost = form.estimated_cost.data if form.estimated_cost.data is not None else None
         expense.price        = form.price.data
+        expense.taxable      = form.taxable.data
         expense.tax          = form.tax.data if form.tax.data is not None else None
         expense.item         = form.item.data.strip()
         expense.description  = form.description.data.strip() if form.description.data else None

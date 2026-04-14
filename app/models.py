@@ -211,9 +211,11 @@ class HouseExpense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     expenditure_date = db.Column(db.Date, nullable=False)
     entered_date = db.Column(db.Date, nullable=False, default=date.today)
+    estimated_cost = db.Column(db.Numeric(12, 2), nullable=True)
     price = db.Column(db.Numeric(12, 2), nullable=False)
-    # NULL = calculate at 5.5%; explicit value overrides it
+    # NULL = calculate at 5.5%; explicit value overrides it; ignored when taxable=False
     tax = db.Column(db.Numeric(12, 2), nullable=True)
+    taxable = db.Column(db.Boolean, nullable=False, default=True)
     item = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(50), nullable=False, default='Materials')
@@ -228,7 +230,9 @@ class HouseExpense(db.Model):
 
     @property
     def effective_tax(self):
-        """Return stored tax if set, otherwise calculate at 5.5%."""
+        """Return 0 if not taxable; stored tax if set; otherwise calculate at 5.5%."""
+        if not self.taxable:
+            return Decimal('0.00')
         if self.tax is not None:
             return self.tax
         return (self.price * TAX_RATE).quantize(Decimal('0.01'))

@@ -263,6 +263,23 @@ def create_app():
                     conn.rollback()
                     click.echo(f'Skipped {old_col} (may already be renamed): {e}')
 
+    # CLI command: flask migrate-expense-cost-fields
+    @app.cli.command('migrate-expense-cost-fields')
+    def migrate_expense_cost_fields():
+        """Add estimated_cost and taxable columns to house_expenses."""
+        with db.engine.connect() as conn:
+            for col_sql in [
+                'ALTER TABLE house_expenses ADD COLUMN estimated_cost NUMERIC(12,2)',
+                'ALTER TABLE house_expenses ADD COLUMN taxable BOOLEAN NOT NULL DEFAULT TRUE',
+            ]:
+                try:
+                    conn.execute(db.text(col_sql))
+                    conn.commit()
+                    click.echo(f'Applied: {col_sql}')
+                except Exception as e:
+                    conn.rollback()
+                    click.echo(f'Skipped (may already exist): {e}')
+
     # CLI command: flask create-user
     @app.cli.command('create-user')
     @click.argument('username')
