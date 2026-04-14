@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required
 from app import db
-from app.models import HouseTask, HouseProject, HouseExpense, HOUSE_EXPENSE_CATEGORIES
+from app.models import HouseTask, HouseProject, HouseExpense, Location, HOUSE_EXPENSE_CATEGORIES
 from app.forms import HouseTaskForm
 from datetime import datetime, date
 from decimal import Decimal
@@ -18,6 +18,9 @@ def require_login():
 def _populate_task_form_choices(form):
     projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
     form.project_id.choices = [(0, '— No Project —')] + [(p.id, p.name) for p in projects]
+
+    locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
+    form.location_id.choices = [(0, '— None —')] + [(loc.id, loc.name) for loc in locations]
 
 
 def _expense_json(e):
@@ -70,12 +73,14 @@ def index():
     )
 
     tasks = query.all()
-    all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_projects  = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
 
     return render_template(
         'house/honey_do.html',
         tasks=tasks,
         all_projects=all_projects,
+        all_locations=all_locations,
         filter_project_id=project_id,
         today=date.today(),
         expense_categories=HOUSE_EXPENSE_CATEGORIES,
@@ -96,6 +101,7 @@ def add_task():
         task = HouseTask(
             title=form.title.data.strip(),
             description=form.description.data.strip() if form.description.data else None,
+            location_id=form.location_id.data if form.location_id.data else None,
             project_id=form.project_id.data if form.project_id.data else None,
             create_date=date.today(),
             start_date=form.start_date.data,
@@ -120,14 +126,15 @@ def edit_task(task_id):
     _populate_task_form_choices(form)
 
     if form.validate_on_submit():
-        task.title = form.title.data.strip()
+        task.title       = form.title.data.strip()
         task.description = form.description.data.strip() if form.description.data else None
-        task.project_id = form.project_id.data if form.project_id.data else None
-        task.start_date = form.start_date.data
-        task.due_date = form.due_date.data
+        task.location_id = form.location_id.data if form.location_id.data else None
+        task.project_id  = form.project_id.data if form.project_id.data else None
+        task.start_date  = form.start_date.data
+        task.due_date    = form.due_date.data
         task.completed_date = form.completed_date.data
-        task.priority = form.priority.data
-        task.timeline = form.timeline.data or None
+        task.priority    = form.priority.data
+        task.timeline    = form.timeline.data or None
         db.session.commit()
         flash(f'"{task.title}" updated.', 'success')
         return redirect(url_for('honey_do.index'))
@@ -146,8 +153,10 @@ def update_task(task_id):
     if not data:
         return jsonify({'error': 'no data'}), 400
 
-    task.title = data.get('title', task.title).strip() or task.title
+    task.title       = data.get('title', task.title).strip() or task.title
     task.description = data.get('description', '').strip() or None
+    lid = int(data['location_id']) if data.get('location_id') else 0
+    task.location_id = lid if lid else None
     pid = int(data['project_id']) if data.get('project_id') else 0
     task.project_id = pid if pid else None
     task.priority = data.get('priority', task.priority)
@@ -199,7 +208,8 @@ def detail(task_id):
     expenses = HouseExpense.query.filter_by(task_id=task_id, is_active=True)\
         .order_by(HouseExpense.expenditure_date.desc()).all()
     total = sum(e.total_with_tax for e in expenses)
-    all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_projects  = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
     return render_template(
         'house/honey_do_detail.html',
         task=task,
@@ -208,6 +218,7 @@ def detail(task_id):
         today=date.today(),
         expense_categories=HOUSE_EXPENSE_CATEGORIES,
         all_projects=all_projects,
+        all_locations=all_locations,
     )
 
 

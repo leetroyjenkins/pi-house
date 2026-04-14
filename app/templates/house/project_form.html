@@ -24,14 +24,26 @@
               {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="col-sm-6">
+            <div class="col-sm-4">
               <label class="form-label">{{ form.status.label.text }}</label>
               {{ form.status(class="form-select") }}
             </div>
 
-            <div class="col-sm-6">
-              <label class="form-label">{{ form.room.label.text }}</label>
-              {{ form.room(class="form-control", placeholder="e.g. Kitchen, Roof, Exterior…") }}
+            <div class="col-sm-4">
+              <label class="form-label">{{ form.project_type.label.text }}</label>
+              {{ form.project_type(class="form-select") }}
+            </div>
+
+            <div class="col-sm-4">
+              <label class="form-label">{{ form.location_id.label.text }}</label>
+              <div class="d-flex gap-1">
+                {{ form.location_id(class="form-select", id="locationSelect") }}
+                <button type="button" class="btn btn-outline-secondary flex-shrink-0"
+                        id="addLocationPopupBtn" title="Add new location"
+                        style="padding: 0 .6rem;">
+                  <i class="bi bi-plus-lg"></i>
+                </button>
+              </div>
             </div>
 
             <div class="col-12">
@@ -85,4 +97,21 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('addLocationPopupBtn').addEventListener('click', function () {
+  openAddLocationModal(function (loc) {
+    const sel = document.getElementById('locationSelect');
+    if (!sel.querySelector(`option[value="${loc.id}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = loc.id;
+      opt.textContent = loc.name;
+      sel.appendChild(opt);
+    }
+    sel.value = loc.id;
+  });
+});
+</script>
 {% endblock %}

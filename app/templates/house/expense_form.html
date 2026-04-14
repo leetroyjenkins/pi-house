@@ -69,8 +69,21 @@
               <label class="form-label">{{ form.retailer_id.label.text }}</label>
               {{ form.retailer_id(class="form-select") }}
               <div class="form-text">
-                <a href="{{ url_for('house.add_retailer') }}?popup=1" target="_blank" rel="opener">+ Add retailer</a>
+                <a href="{{ url_for('house.add_retailer') }}?popup=1" target="_blank" rel="opener">+ Add vendor</a>
               </div>
+            </div>
+
+            <div class="col-sm-6">
+              <label class="form-label">{{ form.bank_id.label.text }}</label>
+              {{ form.bank_id(class="form-select") }}
+              <div class="form-text">
+                <a href="{{ url_for('house.add_bank') }}?popup=1" target="_blank" rel="opener">+ Add bank</a>
+              </div>
+            </div>
+
+            <div class="col-sm-6">
+              <label class="form-label">{{ form.check_number.label.text }}</label>
+              {{ form.check_number(class="form-control", placeholder="e.g. 1042") }}
             </div>
 
             <div class="col-12">
@@ -105,8 +118,13 @@ window.addEventListener('message', function(e) {
     var opt = new Option(e.data.name, e.data.id, true, true);
     sel.add(opt);
   }
-  if (e.data.type === 'newRetailer') {
+  if (e.data.type === 'newVendor') {
     var sel = document.getElementById('retailer_id');
+    var opt = new Option(e.data.name, e.data.id, true, true);
+    sel.add(opt);
+  }
+  if (e.data.type === 'newBank') {
+    var sel = document.getElementById('bank_id');
     var opt = new Option(e.data.name, e.data.id, true, true);
     sel.add(opt);
   }

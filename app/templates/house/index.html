@@ -9,10 +9,48 @@
   </a>
 </div>
 
+{# ---- Section Tabs ---- #}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if filter_section == 'all' or not filter_section %}active{% endif %}"
+       href="{{ url_for('house.index', section='all') }}">
+      All
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if filter_section == 'project' %}active{% endif %}"
+       href="{{ url_for('house.index', section='project') }}">
+      <i class="bi bi-kanban me-1"></i>Projects
+      {% if section_totals.project > 0 %}
+        <span class="badge bg-secondary ms-1">${{ "%.0f"|format(section_totals.project) }}</span>
+      {% endif %}
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if filter_section == 'bill' %}active{% endif %}"
+       href="{{ url_for('house.index', section='bill') }}">
+      <i class="bi bi-file-text me-1"></i>Bills
+      {% if section_totals.bill > 0 %}
+        <span class="badge bg-secondary ms-1">${{ "%.0f"|format(section_totals.bill) }}</span>
+      {% endif %}
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if filter_section == 'maintenance' %}active{% endif %}"
+       href="{{ url_for('house.index', section='maintenance') }}">
+      <i class="bi bi-tools me-1"></i>Maintenance
+      {% if section_totals.maintenance > 0 %}
+        <span class="badge bg-secondary ms-1">${{ "%.0f"|format(section_totals.maintenance) }}</span>
+      {% endif %}
+    </a>
+  </li>
+</ul>
+
 {# ---- Filters ---- #}
 <div class="card mb-4">
   <div class="card-body py-2">
     <form method="get" class="row g-2 align-items-end">
+      <input type="hidden" name="section" value="{{ filter_section or 'all' }}">
       <div class="col-6 col-sm-4 col-md-auto">
         <label class="form-label small mb-1">Project</label>
         <select name="project_id" class="form-select form-select-sm">
@@ -62,7 +100,8 @@
       </div>
       <div class="col-12 col-sm-auto d-flex gap-2">
         <button type="submit" class="btn btn-secondary btn-sm flex-fill flex-sm-grow-0">Filter</button>
-        <a href="{{ url_for('house.index') }}" class="btn btn-outline-secondary btn-sm flex-fill flex-sm-grow-0">Clear</a>
+        <a href="{{ url_for('house.index', section=filter_section or 'all') }}"
+           class="btn btn-outline-secondary btn-sm flex-fill flex-sm-grow-0">Clear</a>
       </div>
     </form>
   </div>
@@ -167,7 +206,7 @@
         <thead>
           <tr>
             <th>Date</th><th>Item</th><th>Category</th>
-            <th>Project</th><th>Retailer</th>
+            <th>Project</th><th>Vendor</th>
             <th class="text-end">Price</th><th class="text-end">Tax</th>
             <th class="text-end">Total</th><th></th>
           </tr>

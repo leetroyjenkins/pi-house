@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Banks{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-bank me-2"></i>Banks</h2>
+  <a href="{{ url_for('house.add_bank') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg"></i> Add Bank
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if banks %}
+    <table class="table table-hover table-sm mb-0">
+      <thead><tr><th>Name</th><th>Account / Last 4</th><th># Expenses</th><th></th></tr></thead>
+      <tbody>
+        {% for b in banks %}
+        <tr>
+          <td>{{ b.name }}</td>
+          <td>{{ b.account_number or '—' }}</td>
+          <td>{{ b.expenses|selectattr('is_active')|list|length }}</td>
+          <td class="text-nowrap">
+            <a href="{{ url_for('house.edit_bank', bank_id=b.id) }}" class="btn btn-sm btn-outline-secondary py-0">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% if not b.expenses|selectattr('is_active')|list %}
+            <form method="post" action="{{ url_for('house.delete_bank', bank_id=b.id) }}"
+                  class="d-inline" onsubmit="return confirm('Delete {{ b.name }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="text-muted p-3 mb-0">No banks yet. <a href="{{ url_for('house.add_bank') }}">Add one</a>.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
