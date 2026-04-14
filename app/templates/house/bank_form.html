@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h4 mb-0">{{ title }}</h2>
+      <a href="{{ url_for('house.banks') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back
+      </a>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {{ form.hidden_tag() }}
+          {% if popup %}<input type="hidden" name="popup" value="1">{% endif %}
+          <div class="mb-3">
+            <label class="form-label">{{ form.name.label.text }}</label>
+            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="e.g. Chase Checking") }}
+            {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ form.account_number.label.text }}</label>
+            {{ form.account_number(class="form-control" + (" is-invalid" if form.account_number.errors else ""), placeholder="e.g. …1234") }}
+            {% for e in form.account_number.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ url_for('house.banks') }}" class="btn btn-outline-secondary">Cancel</a>
+            {% if bank %}
+            <form method="post" action="{{ url_for('house.delete_bank', bank_id=bank.id) }}"
+                  class="ms-auto" onsubmit="return confirm('Delete this bank?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-danger">Delete</button>
+            </form>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

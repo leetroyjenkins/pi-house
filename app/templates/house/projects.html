@@ -42,7 +42,14 @@
             <h5 class="card-title mb-0">{{ p.name }}</h5>
             <span class="badge bg-{{ status_colors.get(p.status, 'secondary') }}">{{ p.status }}</span>
           </div>
-          {% if p.room %}<div class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> {{ p.room }}</div>{% endif %}
+          <div class="d-flex gap-1 flex-wrap mb-1 align-items-center">
+            {% if p.project_type == 'bill' %}
+              <span class="badge bg-info text-dark"><i class="bi bi-file-text"></i> Bill</span>
+            {% elif p.project_type == 'maintenance' %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-tools"></i> Maintenance</span>
+            {% endif %}
+            {% if p.location %}<span class="text-muted small"><i class="bi bi-geo-alt"></i> {{ p.location.name }}</span>{% endif %}
+          </div>
           {% if p.description %}<p class="card-text small text-muted mt-1">{{ p.description[:120] }}{% if p.description|length > 120 %}…{% endif %}</p>{% endif %}
 
           <div class="row g-2 mt-1 text-center">
@@ -116,8 +123,13 @@
             </select>
           </div>
           <div class="col-6">
-            <label class="form-label form-label-sm mb-1">Room</label>
-            <input type="text" class="form-control form-control-sm" name="room" value="{{ p.room or '' }}">
+            <label class="form-label form-label-sm mb-1">Location</label>
+            <select class="form-select form-select-sm" name="location_id">
+              <option value="0">— None —</option>
+              {% for loc in all_locations %}
+                <option value="{{ loc.id }}" {% if p.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="mb-2">
@@ -173,7 +185,7 @@
       <table class="table table-hover table-sm mb-0">
         <thead>
           <tr>
-            <th>Project</th><th>Status</th><th>Room</th>
+            <th>Project</th><th>Status</th><th>Location</th>
             <th class="text-end">Budget</th><th class="text-end">Spent</th><th class="text-end">% Used</th>
             <th>Start</th><th>Due</th><th></th>
           </tr>
@@ -186,7 +198,7 @@
               {% if p.description %}<br><small class="text-muted">{{ p.description[:60] }}{% if p.description|length > 60 %}…{% endif %}</small>{% endif %}
             </td>
             <td><span class="badge bg-{{ status_colors.get(p.status, 'secondary') }}">{{ p.status }}</span></td>
-            <td>{{ p.room or '—' }}</td>
+            <td>{{ p.location.name if p.location else '—' }}</td>
             <td class="text-end">{% if p.budget %}${{ "%.2f"|format(p.budget) }}{% else %}—{% endif %}</td>
             <td class="text-end">${{ "%.2f"|format(p.total_with_tax) }}</td>
             <td class="text-end">
@@ -312,7 +324,7 @@ document.querySelectorAll('.save-project-btn').forEach(btn => {
       name:               editDiv.querySelector('[name=name]').value.trim(),
       description:        editDiv.querySelector('[name=description]').value.trim(),
       status:             editDiv.querySelector('[name=status]').value,
-      room:               editDiv.querySelector('[name=room]').value.trim(),
+      location_id:        editDiv.querySelector('[name=location_id]').value,
       budget:             editDiv.querySelector('[name=budget]').value,
       start_date:         editDiv.querySelector('[name=start_date]').value,
       due_date:           editDiv.querySelector('[name=due_date]').value,

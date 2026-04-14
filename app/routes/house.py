@@ -2,9 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required
 import json
 from app import db
-from app.models import HouseExpense, HouseProject, Retailer, HOUSE_EXPENSE_CATEGORIES
-from app.forms import HouseExpenseForm, HouseProjectForm, RetailerForm
-from datetime import date
+from app.models import HouseExpense, HouseProject, Vendor, Bank, Location, HOUSE_EXPENSE_CATEGORIES
+from app.forms import HouseExpenseForm, HouseProjectForm, VendorForm, BankForm, LocationForm
+from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy import extract, func
 
@@ -24,8 +24,16 @@ def _populate_expense_form_choices(form):
     projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
     form.project_id.choices = [(p.id, p.name) for p in projects]
 
-    retailers = Retailer.query.filter_by(is_active=True).order_by(Retailer.name).all()
-    form.retailer_id.choices = [(0, '— None —')] + [(r.id, r.name) for r in retailers]
+    vendors = Vendor.query.filter_by(is_active=True).order_by(Vendor.name).all()
+    form.retailer_id.choices = [(0, '— None —')] + [(r.id, r.name) for r in vendors]
+
+    banks = Bank.query.filter_by(is_active=True).order_by(Bank.name).all()
+    form.bank_id.choices = [(0, '— None —')] + [(b.id, b.name) for b in banks]
+
+
+def _populate_project_form_choices(form):
+    locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
+    form.location_id.choices = [(0, '— None —')] + [(loc.id, loc.name) for loc in locations]
 
 
 # ---------------------------------------------------------------------------
@@ -36,10 +44,12 @@ def _populate_expense_form_choices(form):
 def index():
     # --- filter params ---
     project_id = request.args.get('project_id', type=int)
-    year = request.args.get('year', type=int)
-    month = request.args.get('month', type=int)
-    quarter = request.args.get('quarter', type=int)
-    category = request.args.get('category', type=str)
+    year       = request.args.get('year',       type=int)
+    month      = request.args.get('month',      type=int)
+    quarter    = request.args.get('quarter',    type=int)
+    category   = request.args.get('category',   type=str)
+    section    = request.args.get('section',    type=str, default='all')
+    # section: all | project | bill | maintenance
 
     query = HouseExpense.query.filter_by(is_active=True)
 
@@ -50,9 +60,8 @@ def index():
     if month:
         query = query.filter(extract('month', HouseExpense.expenditure_date) == month)
     if quarter:
-        # Q1=1-3, Q2=4-6, Q3=7-9, Q4=10-12
         start_month = (quarter - 1) * 3 + 1
-        end_month = start_month + 2
+        end_month   = start_month + 2
         query = query.filter(
             extract('month', HouseExpense.expenditure_date) >= start_month,
             extract('month', HouseExpense.expenditure_date) <= end_month,
@@ -62,9 +71,13 @@ def index():
 
     expenses = query.order_by(HouseExpense.expenditure_date.desc()).all()
 
+    # Filter by section (project_type of parent project)
+    if section and section != 'all':
+        expenses = [e for e in expenses if e.project and e.project.project_type == section]
+
     # --- totals ---
-    total_price = sum((e.price for e in expenses), Decimal('0'))
-    total_tax = sum((e.effective_tax for e in expenses), Decimal('0'))
+    total_price    = sum((e.price        for e in expenses), Decimal('0'))
+    total_tax      = sum((e.effective_tax for e in expenses), Decimal('0'))
     total_with_tax = total_price + total_tax
 
     # --- breakdown by category ---
@@ -89,12 +102,22 @@ def index():
         key = (e.expenditure_date.year, e.expenditure_date.month)
         by_month.setdefault(key, Decimal('0'))
         by_month[key] += e.total_with_tax
-    by_month = sorted(by_month.items())
+    by_month       = sorted(by_month.items())
     by_month_labels = [f"{MONTH_NAMES[k[1]-1]} {k[0]}" for k, _ in by_month]
     by_month_values = [float(v) for _, v in by_month]
 
+    # --- section totals (for tab badges) ---
+    all_expenses = HouseExpense.query.filter_by(is_active=True).all()
+    section_totals = {}
+    for stype in ('project', 'bill', 'maintenance'):
+        subtotal = sum(
+            e.total_with_tax for e in all_expenses
+            if e.project and e.project.project_type == stype
+        )
+        section_totals[stype] = subtotal
+
     # --- filter options ---
-    all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_projects    = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
     available_years = sorted(
         {e.expenditure_date.year for e in HouseExpense.query.filter_by(is_active=True).all()},
         reverse=True
@@ -110,6 +133,7 @@ def index():
         by_project=by_project,
         all_projects=all_projects,
         available_years=available_years,
+        section_totals=section_totals,
         # chart data (JSON-safe)
         chart_category_labels=[c for c, _ in by_category],
         chart_category_values=[float(v) for _, v in by_category],
@@ -123,6 +147,7 @@ def index():
         filter_month=month,
         filter_quarter=quarter,
         filter_category=category,
+        filter_section=section,
         all_categories=HOUSE_EXPENSE_CATEGORIES,
     )
 
@@ -133,8 +158,71 @@ def index():
 
 @bp.route('/expenses')
 def expenses():
-    expenses = HouseExpense.query.filter_by(is_active=True).order_by(HouseExpense.expenditure_date.desc()).all()
-    return render_template('house/expenses.html', expenses=expenses)
+    # --- filter params ---
+    project_id  = request.args.get('project_id',  type=int)
+    vendor_id   = request.args.get('vendor_id',   type=int)
+    bank_id     = request.args.get('bank_id',     type=int)
+    category    = request.args.get('category',    type=str)
+    date_from   = request.args.get('date_from',   type=str)
+    date_to     = request.args.get('date_to',     type=str)
+    sort_col    = request.args.get('sort',        type=str, default='date')
+    sort_dir    = request.args.get('dir',         type=str, default='desc')
+
+    query = HouseExpense.query.filter_by(is_active=True)
+
+    if project_id:
+        query = query.filter(HouseExpense.project_id == project_id)
+    if vendor_id:
+        query = query.filter(HouseExpense.retailer_id == vendor_id)
+    if bank_id:
+        query = query.filter(HouseExpense.bank_id == bank_id)
+    if category:
+        query = query.filter(HouseExpense.category == category)
+    if date_from:
+        try:
+            query = query.filter(HouseExpense.expenditure_date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            query = query.filter(HouseExpense.expenditure_date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    # Sorting
+    sort_map = {
+        'date':  HouseExpense.expenditure_date,
+        'item':  HouseExpense.item,
+        'price': HouseExpense.price,
+    }
+    sort_field = sort_map.get(sort_col, HouseExpense.expenditure_date)
+    if sort_dir == 'asc':
+        query = query.order_by(sort_field.asc())
+    else:
+        query = query.order_by(sort_field.desc())
+
+    expense_list = query.all()
+
+    all_projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_vendors  = Vendor.query.filter_by(is_active=True).order_by(Vendor.name).all()
+    all_banks    = Bank.query.filter_by(is_active=True).order_by(Bank.name).all()
+
+    return render_template(
+        'house/expenses.html',
+        expenses=expense_list,
+        all_projects=all_projects,
+        all_vendors=all_vendors,
+        all_banks=all_banks,
+        all_categories=HOUSE_EXPENSE_CATEGORIES,
+        filter_project_id=project_id,
+        filter_vendor_id=vendor_id,
+        filter_bank_id=bank_id,
+        filter_category=category,
+        filter_date_from=date_from or '',
+        filter_date_to=date_to or '',
+        sort_col=sort_col,
+        sort_dir=sort_dir,
+    )
 
 
 @bp.route('/expenses/add', methods=['GET', 'POST'])
@@ -153,13 +241,14 @@ def add_expense():
             category=form.category.data,
             project_id=form.project_id.data,
             retailer_id=form.retailer_id.data if form.retailer_id.data else None,
+            bank_id=form.bank_id.data if form.bank_id.data else None,
+            check_number=form.check_number.data.strip() if form.check_number.data else None,
         )
         db.session.add(expense)
         db.session.commit()
         flash(f'Expense "{expense.item}" added.', 'success')
         return redirect(url_for('house.expenses'))
 
-    # Default date to today
     if request.method == 'GET':
         form.expenditure_date.data = date.today()
 
@@ -174,13 +263,15 @@ def edit_expense(expense_id):
 
     if form.validate_on_submit():
         expense.expenditure_date = form.expenditure_date.data
-        expense.price = form.price.data
-        expense.tax = form.tax.data if form.tax.data is not None else None
-        expense.item = form.item.data.strip()
-        expense.description = form.description.data.strip() if form.description.data else None
-        expense.category = form.category.data
-        expense.project_id = form.project_id.data
-        expense.retailer_id = form.retailer_id.data if form.retailer_id.data else None
+        expense.price        = form.price.data
+        expense.tax          = form.tax.data if form.tax.data is not None else None
+        expense.item         = form.item.data.strip()
+        expense.description  = form.description.data.strip() if form.description.data else None
+        expense.category     = form.category.data
+        expense.project_id   = form.project_id.data
+        expense.retailer_id  = form.retailer_id.data if form.retailer_id.data else None
+        expense.bank_id      = form.bank_id.data if form.bank_id.data else None
+        expense.check_number = form.check_number.data.strip() if form.check_number.data else None
         db.session.commit()
         flash(f'Expense "{expense.item}" updated.', 'success')
         return redirect(url_for('house.expenses'))
@@ -203,21 +294,24 @@ def delete_expense(expense_id):
 
 @bp.route('/projects')
 def projects():
-    projects = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
-    return render_template('house/projects.html', projects=projects)
+    all_projects  = HouseProject.query.filter_by(is_active=True).order_by(HouseProject.name).all()
+    all_locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
+    return render_template('house/projects.html', projects=all_projects, all_locations=all_locations)
 
 
 @bp.route('/projects/add', methods=['GET', 'POST'])
 def add_project():
     form = HouseProjectForm()
+    _populate_project_form_choices(form)
     popup = request.args.get('popup') or request.form.get('popup', '')
     if form.validate_on_submit():
         project = HouseProject(
             name=form.name.data.strip(),
             description=form.description.data.strip() if form.description.data else None,
             status=form.status.data,
+            project_type=form.project_type.data,
             budget=form.budget.data,
-            room=form.room.data.strip() if form.room.data else None,
+            location_id=form.location_id.data if form.location_id.data else None,
             start_date=form.start_date.data,
             due_date=form.due_date.data,
             completed_date=form.completed_date.data,
@@ -239,15 +333,17 @@ def add_project():
 def edit_project(project_id):
     project = HouseProject.query.get_or_404(project_id)
     form = HouseProjectForm(obj=project)
+    _populate_project_form_choices(form)
 
     if form.validate_on_submit():
-        project.name = form.name.data.strip()
-        project.description = form.description.data.strip() if form.description.data else None
-        project.status = form.status.data
-        project.budget = form.budget.data
-        project.room = form.room.data.strip() if form.room.data else None
-        project.start_date = form.start_date.data
-        project.due_date = form.due_date.data
+        project.name         = form.name.data.strip()
+        project.description  = form.description.data.strip() if form.description.data else None
+        project.status       = form.status.data
+        project.project_type = form.project_type.data
+        project.budget       = form.budget.data
+        project.location_id  = form.location_id.data if form.location_id.data else None
+        project.start_date   = form.start_date.data
+        project.due_date     = form.due_date.data
         project.completed_date = form.completed_date.data
         db.session.commit()
         flash(f'Project "{project.name}" updated.', 'success')
@@ -273,7 +369,6 @@ def quick_add_project():
     project = HouseProject(
         name=data['name'].strip(),
         status=data.get('status', 'planning'),
-        room=data.get('room', '').strip() or None,
     )
     db.session.add(project)
     db.session.commit()
@@ -286,70 +381,184 @@ def update_project(project_id):
     data = request.get_json()
 
     def parse_date(s):
-        from datetime import date as _date
-        return _date.fromisoformat(s) if s else None
+        return date.fromisoformat(s) if s else None
 
-    project.name = (data.get('name') or '').strip() or project.name
-    project.description = (data.get('description') or '').strip() or None
-    project.status = data.get('status') or project.status
+    project.name         = (data.get('name') or '').strip() or project.name
+    project.description  = (data.get('description') or '').strip() or None
+    project.status       = data.get('status') or project.status
+    project.project_type = data.get('project_type') or project.project_type
     budget = data.get('budget')
-    project.budget = float(budget) if budget else None
-    project.room = (data.get('room') or '').strip() or None
-    project.start_date = parse_date(data.get('start_date'))
-    project.due_date = parse_date(data.get('due_date'))
+    project.budget       = float(budget) if budget else None
+    lid = data.get('location_id')
+    project.location_id  = int(lid) if lid else None
+    project.start_date   = parse_date(data.get('start_date'))
+    project.due_date     = parse_date(data.get('due_date'))
     project.completed_date = parse_date(data.get('completed_date'))
     db.session.commit()
     return jsonify({'ok': True})
 
 
 # ---------------------------------------------------------------------------
-# Retailers
+# Vendors (formerly Retailers)
 # ---------------------------------------------------------------------------
 
-@bp.route('/retailers')
+@bp.route('/vendors')
 def retailers():
-    retailers = Retailer.query.filter_by(is_active=True).order_by(Retailer.name).all()
-    return render_template('house/retailers.html', retailers=retailers)
+    vendors = Vendor.query.filter_by(is_active=True).order_by(Vendor.name).all()
+    return render_template('house/retailers.html', vendors=vendors)
 
 
-@bp.route('/retailers/add', methods=['GET', 'POST'])
+@bp.route('/vendors/add', methods=['GET', 'POST'])
 def add_retailer():
-    form = RetailerForm()
+    form = VendorForm()
     popup = request.args.get('popup') or request.form.get('popup', '')
     if form.validate_on_submit():
-        retailer = Retailer(
+        vendor = Vendor(
             name=form.name.data.strip(),
             website=form.website.data.strip() if form.website.data else None,
         )
-        db.session.add(retailer)
+        db.session.add(vendor)
         db.session.commit()
         if popup:
-            payload = json.dumps({'type': 'newRetailer', 'id': retailer.id, 'name': retailer.name})
+            payload = json.dumps({'type': 'newVendor', 'id': vendor.id, 'name': vendor.name})
             return make_response(f'''<!doctype html><html><body>
                 <script>window.opener&&window.opener.postMessage({payload},"*");setTimeout(function(){{window.close();}},150);</script>
-                <p>Retailer added. You may close this tab.</p></body></html>''')
-        flash(f'Retailer "{retailer.name}" added.', 'success')
+                <p>Vendor added. You may close this tab.</p></body></html>''')
+        flash(f'Vendor "{vendor.name}" added.', 'success')
         return redirect(url_for('house.retailers'))
-    return render_template('house/retailer_form.html', form=form, title='Add Retailer', popup=popup)
+    return render_template('house/retailer_form.html', form=form, title='Add Vendor', popup=popup)
 
 
-@bp.route('/retailers/<int:retailer_id>/edit', methods=['GET', 'POST'])
+@bp.route('/vendors/<int:retailer_id>/edit', methods=['GET', 'POST'])
 def edit_retailer(retailer_id):
-    retailer = Retailer.query.get_or_404(retailer_id)
-    form = RetailerForm(obj=retailer)
+    vendor = Vendor.query.get_or_404(retailer_id)
+    form = VendorForm(obj=vendor)
     if form.validate_on_submit():
-        retailer.name = form.name.data.strip()
-        retailer.website = form.website.data.strip() if form.website.data else None
+        vendor.name    = form.name.data.strip()
+        vendor.website = form.website.data.strip() if form.website.data else None
         db.session.commit()
-        flash(f'Retailer "{retailer.name}" updated.', 'success')
+        flash(f'Vendor "{vendor.name}" updated.', 'success')
         return redirect(url_for('house.retailers'))
-    return render_template('house/retailer_form.html', form=form, title='Edit Retailer', retailer=retailer)
+    return render_template('house/retailer_form.html', form=form, title='Edit Vendor', vendor=vendor)
 
 
-@bp.route('/retailers/<int:retailer_id>/delete', methods=['POST'])
+@bp.route('/vendors/<int:retailer_id>/delete', methods=['POST'])
 def delete_retailer(retailer_id):
-    retailer = Retailer.query.get_or_404(retailer_id)
-    retailer.is_active = False
+    vendor = Vendor.query.get_or_404(retailer_id)
+    vendor.is_active = False
     db.session.commit()
-    flash(f'Retailer "{retailer.name}" removed.', 'info')
+    flash(f'Vendor "{vendor.name}" removed.', 'info')
     return redirect(url_for('house.retailers'))
+
+
+# ---------------------------------------------------------------------------
+# Banks
+# ---------------------------------------------------------------------------
+
+@bp.route('/banks')
+def banks():
+    banks = Bank.query.filter_by(is_active=True).order_by(Bank.name).all()
+    return render_template('house/banks.html', banks=banks)
+
+
+@bp.route('/banks/add', methods=['GET', 'POST'])
+def add_bank():
+    form = BankForm()
+    popup = request.args.get('popup') or request.form.get('popup', '')
+    if form.validate_on_submit():
+        bank = Bank(
+            name=form.name.data.strip(),
+            account_number=form.account_number.data.strip() if form.account_number.data else None,
+        )
+        db.session.add(bank)
+        db.session.commit()
+        if popup:
+            payload = json.dumps({'type': 'newBank', 'id': bank.id, 'name': bank.name})
+            return make_response(f'''<!doctype html><html><body>
+                <script>window.opener&&window.opener.postMessage({payload},"*");setTimeout(function(){{window.close();}},150);</script>
+                <p>Bank added. You may close this tab.</p></body></html>''')
+        flash(f'Bank "{bank.name}" added.', 'success')
+        return redirect(url_for('house.banks'))
+    return render_template('house/bank_form.html', form=form, title='Add Bank', popup=popup)
+
+
+@bp.route('/banks/<int:bank_id>/edit', methods=['GET', 'POST'])
+def edit_bank(bank_id):
+    bank = Bank.query.get_or_404(bank_id)
+    form = BankForm(obj=bank)
+    if form.validate_on_submit():
+        bank.name           = form.name.data.strip()
+        bank.account_number = form.account_number.data.strip() if form.account_number.data else None
+        db.session.commit()
+        flash(f'Bank "{bank.name}" updated.', 'success')
+        return redirect(url_for('house.banks'))
+    return render_template('house/bank_form.html', form=form, title='Edit Bank', bank=bank)
+
+
+@bp.route('/banks/<int:bank_id>/delete', methods=['POST'])
+def delete_bank(bank_id):
+    bank = Bank.query.get_or_404(bank_id)
+    bank.is_active = False
+    db.session.commit()
+    flash(f'Bank "{bank.name}" removed.', 'info')
+    return redirect(url_for('house.banks'))
+
+
+# ---------------------------------------------------------------------------
+# Locations
+# ---------------------------------------------------------------------------
+
+@bp.route('/locations')
+def locations():
+    locs = Location.query.filter_by(is_active=True).order_by(Location.name).all()
+    return render_template('house/locations.html', locations=locs)
+
+
+@bp.route('/locations/add', methods=['GET', 'POST'])
+def add_location():
+    form = LocationForm()
+    popup = request.args.get('popup') or request.form.get('popup', '')
+    if form.validate_on_submit():
+        loc = Location(name=form.name.data.strip())
+        db.session.add(loc)
+        db.session.commit()
+        if popup:
+            payload = json.dumps({'type': 'newLocation', 'id': loc.id, 'name': loc.name})
+            return make_response(f'''<!doctype html><html><body>
+                <script>window.opener&&window.opener.postMessage({payload},"*");setTimeout(function(){{window.close();}},150);</script>
+                <p>Location added. You may close this tab.</p></body></html>''')
+        flash(f'Location "{loc.name}" added.', 'success')
+        return redirect(url_for('house.locations'))
+    return render_template('house/location_form.html', form=form, title='Add Location', popup=popup)
+
+
+@bp.route('/locations/<int:location_id>/edit', methods=['GET', 'POST'])
+def edit_location(location_id):
+    loc = Location.query.get_or_404(location_id)
+    form = LocationForm(obj=loc)
+    if form.validate_on_submit():
+        loc.name = form.name.data.strip()
+        db.session.commit()
+        flash(f'Location "{loc.name}" updated.', 'success')
+        return redirect(url_for('house.locations'))
+    return render_template('house/location_form.html', form=form, title='Edit Location', location=loc)
+
+
+@bp.route('/locations/<int:location_id>/delete', methods=['POST'])
+def delete_location(location_id):
+    loc = Location.query.get_or_404(location_id)
+    loc.is_active = False
+    db.session.commit()
+    flash(f'Location "{loc.name}" removed.', 'info')
+    return redirect(url_for('house.locations'))
+
+
+@bp.route('/locations/quick-add', methods=['POST'])
+def quick_add_location():
+    data = request.get_json()
+    if not data or not (data.get('name') or '').strip():
+        return jsonify({'error': 'Name is required'}), 400
+    loc = Location(name=data['name'].strip())
+    db.session.add(loc)
+    db.session.commit()
+    return jsonify({'id': loc.id, 'name': loc.name})

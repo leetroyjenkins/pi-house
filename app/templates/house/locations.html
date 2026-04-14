@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Locations{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-geo-alt me-2"></i>Locations</h2>
+  <a href="{{ url_for('house.add_location') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg"></i> Add Location
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if locations %}
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th># Tasks</th>
+          <th># Projects</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for loc in locations %}
+        <tr>
+          <td>{{ loc.name }}</td>
+          <td>{{ loc.tasks|selectattr('is_active')|list|length }}</td>
+          <td>{{ loc.projects|selectattr('is_active')|list|length }}</td>
+          <td class="text-nowrap">
+            <a href="{{ url_for('house.edit_location', location_id=loc.id) }}"
+               class="btn btn-sm btn-outline-secondary py-0">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% set active_tasks    = loc.tasks|selectattr('is_active')|list %}
+            {% set active_projects = loc.projects|selectattr('is_active')|list %}
+            {% if not active_tasks and not active_projects %}
+            <form method="post" action="{{ url_for('house.delete_location', location_id=loc.id) }}"
+                  class="d-inline" onsubmit="return confirm('Delete {{ loc.name }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger py-0">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="text-muted p-3 mb-0">
+        No locations yet. <a href="{{ url_for('house.add_location') }}">Add one</a>.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

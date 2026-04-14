@@ -19,7 +19,94 @@
   </div>
 </div>
 
+{# ---- Filter Panel ---- #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end" id="filterForm">
+      <input type="hidden" name="sort" value="{{ sort_col }}">
+      <input type="hidden" name="dir"  value="{{ sort_dir }}">
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">Project</label>
+        <select name="project_id" class="form-select form-select-sm">
+          <option value="">All Projects</option>
+          {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">Category</label>
+        <select name="category" class="form-select form-select-sm">
+          <option value="">All Categories</option>
+          {% for c in all_categories %}
+            <option value="{{ c }}" {% if filter_category == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">Vendor</label>
+        <select name="vendor_id" class="form-select form-select-sm">
+          <option value="">All Vendors</option>
+          {% for v in all_vendors %}
+            <option value="{{ v.id }}" {% if filter_vendor_id == v.id %}selected{% endif %}>{{ v.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">Bank</label>
+        <select name="bank_id" class="form-select form-select-sm">
+          <option value="">All Banks</option>
+          {% for b in all_banks %}
+            <option value="{{ b.id }}" {% if filter_bank_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">From</label>
+        <input type="date" name="date_from" class="form-control form-control-sm"
+               value="{{ filter_date_from }}">
+      </div>
+
+      <div class="col-6 col-sm-4 col-md-auto">
+        <label class="form-label small mb-1">To</label>
+        <input type="date" name="date_to" class="form-control form-control-sm"
+               value="{{ filter_date_to }}">
+      </div>
+
+      <div class="col-12 col-sm-auto d-flex gap-2">
+        <button type="submit" class="btn btn-secondary btn-sm flex-fill flex-sm-grow-0">Filter</button>
+        <a href="{{ url_for('house.expenses') }}" class="btn btn-outline-secondary btn-sm flex-fill flex-sm-grow-0">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
 {% if expenses %}
+
+{# ---- Sort helpers ---- #}
+{% macro sort_link(col, label) %}
+  {% set next_dir = 'asc' if (sort_col == col and sort_dir == 'desc') else 'desc' %}
+  <a href="{{ url_for('house.expenses', sort=col, dir=next_dir,
+                      project_id=filter_project_id or '',
+                      vendor_id=filter_vendor_id or '',
+                      bank_id=filter_bank_id or '',
+                      category=filter_category or '',
+                      date_from=filter_date_from,
+                      date_to=filter_date_to) }}"
+     class="text-decoration-none text-reset">
+    {{ label }}
+    {% if sort_col == col %}
+      <i class="bi bi-caret-{{ 'down' if sort_dir == 'desc' else 'up' }}-fill ms-1" style="font-size:.7rem;"></i>
+    {% else %}
+      <i class="bi bi-caret-down text-muted ms-1" style="font-size:.7rem; opacity:.4;"></i>
+    {% endif %}
+  </a>
+{% endmacro %}
 
 {# ---- TABLE VIEW ---- #}
 <div id="viewTable" class="card">
@@ -28,10 +115,17 @@
       <table class="table table-hover table-sm mb-0">
         <thead>
           <tr>
-            <th>Date</th><th>Item</th><th>Category</th>
-            <th>Project</th><th>Retailer</th>
-            <th class="text-end">Price</th><th class="text-end">Tax</th>
-            <th class="text-end">Total</th><th></th>
+            <th>{{ sort_link('date', 'Date') }}</th>
+            <th>{{ sort_link('item', 'Item') }}</th>
+            <th>Category</th>
+            <th>Project</th>
+            <th>Vendor</th>
+            <th>Bank</th>
+            <th>Check #</th>
+            <th class="text-end">{{ sort_link('price', 'Price') }}</th>
+            <th class="text-end">Tax</th>
+            <th class="text-end">Total</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +146,8 @@
                 {% else %}{{ e.retailer.name }}{% endif %}
               {% else %}—{% endif %}
             </td>
+            <td>{{ e.bank.name if e.bank else '—' }}</td>
+            <td class="text-nowrap text-muted small">{{ e.check_number or '—' }}</td>
             <td class="text-end">${{ "%.2f"|format(e.price) }}</td>
             <td class="text-end text-muted small">
               ${{ "%.2f"|format(e.effective_tax) }}
@@ -71,6 +167,15 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot class="table-light">
+          <tr>
+            <td colspan="7" class="text-end fw-semibold small text-muted">{{ expenses|length }} expense{{ 's' if expenses|length != 1 }}</td>
+            <td class="text-end fw-semibold">${{ "%.2f"|format(expenses|sum(attribute='price')) }}</td>
+            <td class="text-end text-muted small">${{ "%.2f"|format(expenses|sum(attribute='effective_tax')) }}</td>
+            <td class="text-end fw-bold">${{ "%.2f"|format(expenses|sum(attribute='total_with_tax')) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -115,7 +220,8 @@
 
         <div class="mt-2 small text-muted">
           <i class="bi bi-kanban"></i> {{ e.project.name }}
-          {% if e.retailer %} · <i class="bi bi-shop"></i> {{ e.retailer.name }}{% endif %}
+          {% if e.retailer %} · <i class="bi bi-person-workspace"></i> {{ e.retailer.name }}{% endif %}
+          {% if e.bank %} · <i class="bi bi-bank"></i> {{ e.bank.name }}{% if e.check_number %} #{{ e.check_number }}{% endif %}{% endif %}
         </div>
       </div>
       <div class="card-footer d-flex justify-content-end gap-1 py-2">
@@ -135,7 +241,7 @@
 
 {% else %}
   <div class="card"><div class="card-body text-muted">
-    No expenses yet. <a href="{{ url_for('house.add_expense') }}">Add one</a>.
+    No expenses found. <a href="{{ url_for('house.add_expense') }}">Add one</a>.
   </div></div>
 {% endif %}
 {% endblock %}

@@ -100,6 +100,11 @@
           </dd>
           {% endif %}
 
+          {% if task.location %}
+          <dt class="col-5 text-muted fw-normal">Location</dt>
+          <dd class="col-7">{{ task.location.name }}</dd>
+          {% endif %}
+
           {% if task.create_date %}
           <dt class="col-5 text-muted fw-normal">Created</dt>
           <dd class="col-7">{{ task.create_date.strftime('%b %-d, %Y') }}</dd>

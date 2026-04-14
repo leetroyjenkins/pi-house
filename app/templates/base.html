@@ -111,7 +111,25 @@
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'house.retailers' %}active{% endif %}"
              href="{{ url_for('house.retailers') }}">
-            <i class="bi bi-shop"></i> Retailers
+            <i class="bi bi-person-workspace"></i> Vendors
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.banks' %}active{% endif %}"
+             href="{{ url_for('house.banks') }}">
+            <i class="bi bi-bank"></i> Banks
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'house.locations' %}active{% endif %}"
+             href="{{ url_for('house.locations') }}">
+            <i class="bi bi-geo-alt"></i> Locations
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.blueprint == 'bills' %}active{% endif %}"
+             href="{{ url_for('bills.index') }}">
+            <i class="bi bi-receipt-cutoff"></i> Bills
           </a>
         </li>
       </ul>
@@ -147,26 +165,42 @@
           <input type="text" class="form-control" id="newProjectName" placeholder="e.g. Bathroom Remodel">
           <div class="invalid-feedback">Name is required.</div>
         </div>
-        <div class="row g-2">
-          <div class="col-6">
-            <label class="form-label">Status</label>
-            <select class="form-select" id="newProjectStatus">
-              <option value="planning">Planning</option>
-              <option value="in-progress">In Progress</option>
-              <option value="on-hold">On Hold</option>
-              <option value="completed">Completed</option>
-              <option value="abandoned">Abandoned</option>
-            </select>
-          </div>
-          <div class="col-6">
-            <label class="form-label">Room</label>
-            <input type="text" class="form-control" id="newProjectRoom" placeholder="e.g. Kitchen">
-          </div>
+        <div class="mb-0">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="newProjectStatus">
+            <option value="planning">Planning</option>
+            <option value="in-progress">In Progress</option>
+            <option value="on-hold">On Hold</option>
+            <option value="completed">Completed</option>
+            <option value="abandoned">Abandoned</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="saveNewProjectBtn">Save Project</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Add Location Modal (shared across all pages) ── #}
+<div class="modal fade" id="addLocationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-geo-alt me-2"></i>Add Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="newLocationName"
+               placeholder="e.g. Kitchen, Backyard, Garage">
+        <div class="invalid-feedback">Name is required.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewLocationBtn">Save Location</button>
       </div>
     </div>
   </div>
@@ -195,12 +229,48 @@
     nameEl.value = '';
     nameEl.classList.remove('is-invalid');
     document.getElementById('newProjectStatus').value = 'planning';
-    document.getElementById('newProjectRoom').value = '';
-    _addProjectModal.show();
+_addProjectModal.show();
     document.getElementById('addProjectModal').addEventListener(
       'shown.bs.modal', () => nameEl.focus(), { once: true }
     );
   }
+
+  // ── Shared Add Location Modal ─────────────────────────────────────────────
+  let _addLocationCallback = null;
+  const _addLocationModal = new bootstrap.Modal(document.getElementById('addLocationModal'));
+
+  function openAddLocationModal(onSuccess) {
+    _addLocationCallback = onSuccess;
+    const nameEl = document.getElementById('newLocationName');
+    nameEl.value = '';
+    nameEl.classList.remove('is-invalid');
+    _addLocationModal.show();
+    document.getElementById('addLocationModal').addEventListener(
+      'shown.bs.modal', () => nameEl.focus(), { once: true }
+    );
+  }
+
+  document.getElementById('saveNewLocationBtn').addEventListener('click', function () {
+    const nameEl = document.getElementById('newLocationName');
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.classList.add('is-invalid'); nameEl.focus(); return; }
+    nameEl.classList.remove('is-invalid');
+
+    fetch('/house/locations/quick-add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
+      body: JSON.stringify({ name }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      _addLocationModal.hide();
+      if (_addLocationCallback) _addLocationCallback(data);
+    });
+  });
 
   document.getElementById('saveNewProjectBtn').addEventListener('click', function () {
     const nameEl = document.getElementById('newProjectName');
@@ -217,7 +287,6 @@
       body: JSON.stringify({
         name,
         status: document.getElementById('newProjectStatus').value,
-        room: document.getElementById('newProjectRoom').value.trim(),
       }),
     })
     .then(r => r.json())

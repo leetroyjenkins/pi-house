@@ -78,6 +78,9 @@
           {% else %}
             <span class="badge bg-light text-secondary border">General Upkeep</span>
           {% endif %}
+          {% if task.location %}
+            <span class="badge bg-light text-secondary border"><i class="bi bi-geo-alt"></i> {{ task.location.name }}</span>
+          {% endif %}
         </div>
         <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
           {% if task.completed %}
@@ -128,6 +131,21 @@
     <div class="mb-2">
       <label class="form-label form-label-sm mb-1">Description</label>
       <textarea class="form-control form-control-sm" name="description" rows="2">{{ task.description or '' }}</textarea>
+    </div>
+    <div class="mb-2">
+      <label class="form-label form-label-sm mb-1">Location</label>
+      <div class="d-flex gap-1">
+        <select class="form-select form-select-sm" name="location_id">
+          <option value="0">— None —</option>
+          {% for loc in all_locations %}
+            <option value="{{ loc.id }}" {% if task.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 add-location-popup-btn"
+                title="Add new location" style="padding: 0 .4rem;">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
     </div>
     <div class="row g-2 mb-2">
       <div class="col-6 col-sm-4">
@@ -562,6 +580,7 @@ document.querySelectorAll('.save-task-btn').forEach(btn => {
     const data = {
       title:          editDiv.querySelector('[name=title]').value,
       description:    editDiv.querySelector('[name=description]').value,
+      location_id:    editDiv.querySelector('[name=location_id]').value,
       project_id:     editDiv.querySelector('[name=project_id]').value,
       priority:       editDiv.querySelector('[name=priority]').value,
       timeline:       editDiv.querySelector('[name=timeline]').value,
@@ -630,6 +649,24 @@ document.querySelectorAll('.add-project-popup-btn').forEach(btn => {
         }
       });
       targetSelect.value = project.id;
+    });
+  });
+});
+
+// ── Add location modal ────────────────────────────────────────────────────────
+document.querySelectorAll('.add-location-popup-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const targetSelect = this.closest('.d-flex').querySelector('select[name=location_id]');
+    openAddLocationModal(function (loc) {
+      document.querySelectorAll('select[name=location_id]').forEach(sel => {
+        if (!sel.querySelector(`option[value="${loc.id}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = loc.id;
+          opt.textContent = loc.name;
+          sel.appendChild(opt);
+        }
+      });
+      targetSelect.value = loc.id;
     });
   });
 });

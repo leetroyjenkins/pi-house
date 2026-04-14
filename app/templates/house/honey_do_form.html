@@ -26,6 +26,18 @@
             {{ form.description(class="form-control", rows=3) }}
           </div>
 
+          <div class="mb-3">
+            {{ form.location_id.label(class="form-label") }}
+            <div class="d-flex gap-1">
+              {{ form.location_id(class="form-select", id="locationSelect") }}
+              <button type="button" class="btn btn-outline-secondary flex-shrink-0"
+                      id="addLocationPopupBtn" title="Add new location"
+                      style="padding: 0 .6rem;">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </div>
+
           <div class="row g-3 mb-3">
             <div class="col-12 col-sm-6">
               {{ form.priority.label(class="form-label") }}
@@ -89,6 +101,19 @@ document.getElementById('addProjectPopupBtn').addEventListener('click', function
       sel.appendChild(opt);
     }
     sel.value = project.id;
+  });
+});
+
+document.getElementById('addLocationPopupBtn').addEventListener('click', function () {
+  openAddLocationModal(function (loc) {
+    const sel = document.getElementById('locationSelect');
+    if (!sel.querySelector(`option[value="${loc.id}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = loc.id;
+      opt.textContent = loc.name;
+      sel.appendChild(opt);
+    }
+    sel.value = loc.id;
   });
 });
 </script>

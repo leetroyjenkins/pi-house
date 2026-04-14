@@ -1,32 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Retailers{% endblock %}
+{% block title %}Vendors{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="h4 mb-0"><i class="bi bi-shop me-2"></i>Retailers</h2>
+  <h2 class="h4 mb-0"><i class="bi bi-person-workspace me-2"></i>Vendors</h2>
   <a href="{{ url_for('house.add_retailer') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg"></i> Add Retailer
+    <i class="bi bi-plus-lg"></i> Add Vendor
   </a>
 </div>
 
 <div class="card">
   <div class="card-body p-0">
-    {% if retailers %}
+    {% if vendors %}
     <table class="table table-hover table-sm mb-0">
       <thead><tr><th>Name</th><th>Website</th><th># Expenses</th><th></th></tr></thead>
       <tbody>
-        {% for r in retailers %}
+        {% for v in vendors %}
         <tr>
-          <td>{{ r.name }}</td>
-          <td>{% if r.website %}<a href="{{ r.website }}" target="_blank" rel="noopener">{{ r.website }}</a>{% else %}—{% endif %}</td>
-          <td>{{ r.expenses|length }}</td>
+          <td>{{ v.name }}</td>
+          <td>{% if v.website %}<a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a>{% else %}—{% endif %}</td>
+          <td>{{ v.expenses|selectattr('is_active')|list|length }}</td>
           <td class="text-nowrap">
-            <a href="{{ url_for('house.edit_retailer', retailer_id=r.id) }}" class="btn btn-sm btn-outline-secondary py-0">
+            <a href="{{ url_for('house.edit_retailer', retailer_id=v.id) }}" class="btn btn-sm btn-outline-secondary py-0">
               <i class="bi bi-pencil"></i>
             </a>
-            {% if not r.expenses %}
-            <form method="post" action="{{ url_for('house.delete_retailer', retailer_id=r.id) }}"
-                  class="d-inline" onsubmit="return confirm('Delete {{ r.name }}?')">
+            {% if not v.expenses|selectattr('is_active')|list %}
+            <form method="post" action="{{ url_for('house.delete_retailer', retailer_id=v.id) }}"
+                  class="d-inline" onsubmit="return confirm('Delete {{ v.name }}?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
             </form>
@@ -37,7 +37,7 @@
       </tbody>
     </table>
     {% else %}
-      <p class="text-muted p-3 mb-0">No retailers yet. <a href="{{ url_for('house.add_retailer') }}">Add one</a>.</p>
+      <p class="text-muted p-3 mb-0">No vendors yet. <a href="{{ url_for('house.add_retailer') }}">Add one</a>.</p>
     {% endif %}
   </div>
 </div>

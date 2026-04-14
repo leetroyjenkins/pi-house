@@ -35,9 +35,11 @@ def create_app():
     from app.routes.auth import bp as auth_bp
     from app.routes.house import bp as house_bp
     from app.routes.honey_do import bp as honey_do_bp
+    from app.routes.bills import bp as bills_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(house_bp)
     app.register_blueprint(honey_do_bp)
+    app.register_blueprint(bills_bp)
 
     # Simple home and health routes
     @app.route('/')
@@ -71,6 +73,117 @@ def create_app():
         else:
             click.echo('"General House Expenses" project already exists.')
 
+    # CLI command: flask migrate-bills
+    @app.cli.command('migrate-bills')
+    def migrate_bills():
+        """Create bills and bill_payments tables."""
+        with db.engine.connect() as conn:
+            sqls = [
+                '''CREATE TABLE IF NOT EXISTS bills (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    provider VARCHAR(150),
+                    account_number VARCHAR(50),
+                    auto_pay BOOLEAN NOT NULL DEFAULT FALSE,
+                    bank_id INTEGER REFERENCES banks(id),
+                    notes TEXT,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )''',
+                '''CREATE TABLE IF NOT EXISTS bill_payments (
+                    id SERIAL PRIMARY KEY,
+                    bill_id INTEGER NOT NULL REFERENCES bills(id),
+                    period_year INTEGER NOT NULL,
+                    period_month INTEGER NOT NULL,
+                    amount NUMERIC(12,2),
+                    paid_date DATE,
+                    is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+                    check_number VARCHAR(20),
+                    bank_id INTEGER REFERENCES banks(id),
+                    notes TEXT,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )''',
+            ]
+            for sql in sqls:
+                try:
+                    conn.execute(db.text(sql))
+                    conn.commit()
+                    click.echo(f'OK: {sql.split()[2]}')
+                except Exception as e:
+                    conn.rollback()
+                    click.echo(f'Skipped: {e}')
+
+    # CLI command: flask migrate-locations
+    @app.cli.command('migrate-locations')
+    def migrate_locations():
+        """Create locations table and add location_id to tasks and projects."""
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(db.text('''
+                    CREATE TABLE IF NOT EXISTS locations (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                '''))
+                conn.commit()
+                click.echo('Created locations table.')
+            except Exception as e:
+                conn.rollback()
+                click.echo(f'locations table: {e}')
+
+            for table, col, sql in [
+                ('house_todos',    'location_id', 'ALTER TABLE house_todos    ADD COLUMN location_id INTEGER REFERENCES locations(id)'),
+                ('house_projects', 'location_id', 'ALTER TABLE house_projects ADD COLUMN location_id INTEGER REFERENCES locations(id)'),
+            ]:
+                try:
+                    conn.execute(db.text(sql))
+                    conn.commit()
+                    click.echo(f'Added location_id to {table}.')
+                except Exception as e:
+                    conn.rollback()
+                    click.echo(f'Skipped location_id on {table} (may already exist): {e}')
+
+    # CLI command: flask migrate-v2
+    @app.cli.command('migrate-v2')
+    def migrate_v2():
+        """Add banks table, check_number/bank_id to expenses, room to tasks, project_type to projects."""
+        with db.engine.connect() as conn:
+            # Create banks table
+            try:
+                conn.execute(db.text('''
+                    CREATE TABLE IF NOT EXISTS banks (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        account_number VARCHAR(50),
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                '''))
+                conn.commit()
+                click.echo('Created banks table.')
+            except Exception as e:
+                click.echo(f'banks table: {e}')
+
+            migrations = [
+                ('house_expenses', 'check_number', 'ALTER TABLE house_expenses ADD COLUMN check_number VARCHAR(20)'),
+                ('house_expenses', 'bank_id',      'ALTER TABLE house_expenses ADD COLUMN bank_id INTEGER REFERENCES banks(id)'),
+                ('house_todos',    'room',          'ALTER TABLE house_todos ADD COLUMN room VARCHAR(100)'),
+                ('house_projects', 'project_type',  "ALTER TABLE house_projects ADD COLUMN project_type VARCHAR(20) NOT NULL DEFAULT 'project'"),
+            ]
+            for table, col, sql in migrations:
+                try:
+                    conn.execute(db.text(sql))
+                    conn.commit()
+                    click.echo(f'Added {col} to {table}.')
+                except Exception as e:
+                    conn.rollback()
+                    click.echo(f'Skipped {col} on {table} (may already exist): {e}')
+
     # CLI command: flask migrate-task-expenses
     @app.cli.command('migrate-task-expenses')
     def migrate_task_expenses():
@@ -83,6 +196,7 @@ def create_app():
                 conn.commit()
                 click.echo('Added task_id column to house_expenses.')
             except Exception as e:
+                conn.rollback()
                 click.echo(f'Migration may already be applied or failed: {e}')
 
     # CLI command: flask migrate-task-dates
@@ -99,6 +213,7 @@ def create_app():
                     conn.commit()
                     click.echo(f'Applied: {col_sql}')
                 except Exception as e:
+                    conn.rollback()
                     click.echo(f'Skipped (may already exist): {e}')
 
     # CLI command: flask migrate-timeline-values
@@ -129,6 +244,7 @@ def create_app():
                     conn.commit()
                     click.echo(f'Applied: {col_sql}')
                 except Exception as e:
+                    conn.rollback()
                     click.echo(f'Skipped (may already exist): {e}')
 
     # CLI command: flask migrate-project-dates
@@ -144,6 +260,7 @@ def create_app():
                     conn.commit()
                     click.echo(f'Renamed {old_col} → {new_col}')
                 except Exception as e:
+                    conn.rollback()
                     click.echo(f'Skipped {old_col} (may already be renamed): {e}')
 
     # CLI command: flask create-user
