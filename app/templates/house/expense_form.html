@@ -36,6 +36,17 @@
             </div>
 
             <div class="col-sm-6">
+              <label class="form-label">{{ form.estimated_cost.label.text }}
+                <span class="text-muted small fw-normal">(optional)</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                {{ form.estimated_cost(class="form-control" + (" is-invalid" if form.estimated_cost.errors else ""), placeholder="0.00") }}
+              </div>
+              {% for e in form.estimated_cost.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-sm-6">
               <label class="form-label">{{ form.price.label.text }}</label>
               <div class="input-group">
                 <span class="input-group-text">$</span>
@@ -44,7 +55,14 @@
               {% for e in form.price.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="col-sm-6">
+            <div class="col-sm-6 d-flex align-items-center pt-3">
+              <div class="form-check form-switch">
+                {{ form.taxable(class="form-check-input", id="taxable", role="switch") }}
+                <label class="form-check-label" for="taxable">{{ form.taxable.label.text }}</label>
+              </div>
+            </div>
+
+            <div class="col-sm-6" id="taxAmountRow">
               <label class="form-label">
                 {{ form.tax.label.text }}
                 <span class="text-muted small fw-normal">(leave blank for 5.5%)</span>
@@ -112,6 +130,14 @@
 
 {% block scripts %}
 <script>
+(function() {
+  var taxable = document.getElementById('taxable');
+  var taxRow  = document.getElementById('taxAmountRow');
+  function sync() { taxRow.style.display = taxable.checked ? '' : 'none'; }
+  taxable.addEventListener('change', sync);
+  sync();
+})();
+
 window.addEventListener('message', function(e) {
   if (e.data.type === 'newProject') {
     var sel = document.getElementById('project_id');

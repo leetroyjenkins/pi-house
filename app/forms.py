@@ -99,9 +99,16 @@ class BillPaymentForm(FlaskForm):
 class HouseExpenseForm(FlaskForm):
     expenditure_date = DateField('Purchase Date', validators=[DataRequired()])
     item = StringField('Item', validators=[DataRequired(), Length(max=200)])
-    price = DecimalField('Price ($)', validators=[DataRequired(), NumberRange(min=0)], places=2)
+    estimated_cost = DecimalField(
+        'Estimated Cost ($)',
+        validators=[Optional(), NumberRange(min=0)],
+        places=2,
+        description='Optional estimate before purchase'
+    )
+    price = DecimalField('Final Cost ($)', validators=[DataRequired(), NumberRange(min=0)], places=2)
+    taxable = BooleanField('Apply Tax', default=True)
     tax = DecimalField(
-        'Tax ($)',
+        'Tax Amount ($)',
         validators=[Optional(), NumberRange(min=0)],
         places=2,
         description='Leave blank to auto-calculate at 5.5%'

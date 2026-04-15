@@ -207,13 +207,13 @@
           <tr>
             <th>Date</th><th>Item</th><th>Category</th>
             <th>Project</th><th>Vendor</th>
-            <th class="text-end">Price</th><th class="text-end">Tax</th>
-            <th class="text-end">Total</th><th></th>
+            <th class="text-end">Final Cost</th><th class="text-end">Tax</th>
+            <th class="text-end">Total</th>
           </tr>
         </thead>
         <tbody>
           {% for e in expenses %}
-          <tr>
+          <tr style="cursor:pointer" onclick="window.location='{{ url_for('house.expense_detail', expense_id=e.id) }}'">
             <td class="text-nowrap">{{ e.expenditure_date.strftime('%Y-%m-%d') }}</td>
             <td>
               {{ e.item }}
@@ -227,14 +227,9 @@
             <td class="text-end">${{ "%.2f"|format(e.price) }}</td>
             <td class="text-end text-muted small">
               ${{ "%.2f"|format(e.effective_tax) }}
-              {% if e.tax is none %}<span class="text-muted" title="Auto-calculated at 5.5%">*</span>{% endif %}
+              {% if e.taxable and e.tax is none %}<span class="text-muted" title="Auto-calculated at 5.5%">*</span>{% endif %}
             </td>
             <td class="text-end fw-semibold">${{ "%.2f"|format(e.total_with_tax) }}</td>
-            <td class="text-nowrap">
-              <a href="{{ url_for('house.edit_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-secondary py-0">
-                <i class="bi bi-pencil"></i>
-              </a>
-            </td>
           </tr>
           {% endfor %}
         </tbody>
